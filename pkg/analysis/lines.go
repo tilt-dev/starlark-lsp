@@ -15,7 +15,13 @@ import (
 //
 // Implementation note: there are arguably more efficient ways to compute/store
 // this information (e.g. VSCode uses "prefix sums" internally). If this becomes
-// a performance bottleneck, it can be optimized.
+// a performance bottleneck, it can be optimized. However, this approach is
+// similar to others, such as `rust-analyzer`, so it should be sufficient.
+//
+// Currently, this doesn't handle UTF-16 properly, which is used in the LSP
+// spec. See:
+// 	* https://github.com/microsoft/language-server-protocol/issues/376
+//	* https://github.com/rust-analyzer/rust-analyzer/blob/9b1978a3ed405c2a5ec34703914ec1878b599e14/crates/ide_db/src/line_index.rs
 type LineOffsets struct {
 	// offsets for the first byte at each line (by index)
 	offsets   []uint32
