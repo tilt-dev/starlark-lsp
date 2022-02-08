@@ -12,6 +12,8 @@ import (
 func TestServer_DidChange(t *testing.T) {
 	f := newFixture(t)
 
+	const fileData = "foo + 1 = &^ 3"
+
 	var resp jsonrpc2.Response
 	f.mustEditorCall(protocol.MethodTextDocumentDidChange, protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{
@@ -21,11 +23,11 @@ func TestServer_DidChange(t *testing.T) {
 			Version: 1,
 		},
 		ContentChanges: []protocol.TextDocumentContentChangeEvent{
-			{Text: "foo + 1 = &^ 3"},
+			{Text: fileData},
 		},
 	}, &resp)
 
-	var params protocol.PublishDiagnosticsParams
-	f.nextEditorEvent(protocol.MethodTextDocumentPublishDiagnostics, &params)
-	require.Equal(t, uri.File("./test.star"), params.URI)
+	data, err := f.docManager.Read(uri.File("./test.star"))
+	require.NoError(t, err, "Failed to read file from doc manager")
+	require.Equal(t, fileData, string(data), "File contents did not match")
 }

@@ -20,7 +20,7 @@ import (
 type fixture struct {
 	t            testing.TB
 	ctx          context.Context
-	client       protocol.Client
+	docManager   document.Manager
 	editorConn   jsonrpc2.Conn
 	editorEvents chan jsonrpc2.Request
 }
@@ -73,6 +73,7 @@ func newFixture(t testing.TB) *fixture {
 	return &fixture{
 		t:            t,
 		ctx:          ctx,
+		docManager:   docManager,
 		editorConn:   editorJsonConn,
 		editorEvents: editorChan,
 	}

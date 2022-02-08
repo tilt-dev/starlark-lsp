@@ -8,7 +8,6 @@ require (
 	go.lsp.dev/jsonrpc2 v0.9.0
 	go.lsp.dev/protocol v0.11.2
 	go.lsp.dev/uri v0.3.0
-	go.starlark.net v0.0.0-20211203141949-70c0e40ae128
 	go.uber.org/zap v1.20.0
 )
 
