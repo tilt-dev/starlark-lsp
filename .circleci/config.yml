@@ -23,14 +23,26 @@ jobs:
       - slack/notify-on-failure:
           branch_pattern: main
           event: fail
+          template: basic_fail_1
+
+  release:
+    docker:
+      - image: cimg/go:1.17
+    steps:
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
 
 workflows:
   version: 2
   build:
     jobs:
-      - slack/notify-on-tag:
+      - lint
+      - test
+      - release:
           filters:
             tags:
               only: /^v.*/
-      - lint
-      - test
+          requires:
+            - lint
+            - test
