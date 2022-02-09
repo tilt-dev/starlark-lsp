@@ -20,7 +20,7 @@ jobs:
       - run: make test
       - store_test_results:
           path: test-results
-      - slack/notify-on-failure:
+      - slack/notify:
           branch_pattern: main
           event: fail
           template: basic_fail_1
