@@ -20,18 +20,18 @@ jobs:
       - run: make test
       - store_test_results:
           path: test-results
-      - slack/notify:
-          branch_pattern: main
-          event: fail
-          template: basic_fail_1
+#      - slack/notify:
+#          branch_pattern: main
+#          event: fail
+#          template: basic_fail_1
 
-  release:
-    docker:
-      - image: cimg/go:1.17
-    steps:
-      - slack/notify:
-          event: pass
-          template: success_tagged_deploy_1
+#  release:
+#    docker:
+#      - image: cimg/go:1.17
+#    steps:
+#      - slack/notify:
+#          event: pass
+#          template: success_tagged_deploy_1
 
 workflows:
   version: 2
@@ -39,10 +39,10 @@ workflows:
     jobs:
       - lint
       - test
-      - release:
-          filters:
-            tags:
-              only: /^v.*/
-          requires:
-            - lint
-            - test
+#      - release:
+#          filters:
+#            tags:
+#              only: /^v.*/
+#          requires:
+#            - lint
+#            - test
