@@ -1,20 +1,21 @@
 package document
 
 import (
-	"io"
+	"os"
+	"sync"
 
-	"github.com/spf13/afero"
 	"go.lsp.dev/uri"
 )
 
 // Manager provides simplified file read/write operations for the LSP server.
 type Manager struct {
-	fs afero.Fs
+	mu   sync.Mutex
+	docs map[uri.URI]Document
 }
 
-func NewDocumentManager() Manager {
-	return Manager{
-		fs: afero.NewMemMapFs(),
+func NewDocumentManager() *Manager {
+	return &Manager{
+		docs: make(map[uri.URI]Document),
 	}
 }
 
@@ -22,21 +23,33 @@ func NewDocumentManager() Manager {
 //
 // If no file exists at the path or the URI is of an invalid type, an error is
 // returned.
-func (m *Manager) Read(uri uri.URI) ([]byte, error) {
-	filename, err := uriToFilename(uri)
-	if err != nil {
-		return nil, err
+func (m *Manager) Read(uri uri.URI) (Document, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if doc, ok := m.docs[uri]; ok {
+		return doc.shallowClone(), nil
 	}
-	return afero.ReadFile(m.fs, filename)
+	return Document{}, os.ErrNotExist
 }
 
 // Write creates or replaces the contents of the file for the given URI.
-//
-// If the URI is of an invalid type, an error is returned.
-func (m *Manager) Write(uri uri.URI, reader io.Reader) error {
-	filename, err := uriToFilename(uri)
-	if err != nil {
-		return err
+func (m *Manager) Write(uri uri.URI, doc Document) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.removeAndCleanup(uri)
+	m.docs[uri] = doc
+}
+
+func (m *Manager) Remove(uri uri.URI) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.removeAndCleanup(uri)
+}
+
+// removeAndCleanup removes a Document and frees associated resources.
+func (m *Manager) removeAndCleanup(uri uri.URI) {
+	if existing, ok := m.docs[uri]; ok {
+		existing.Close()
 	}
-	return afero.WriteReader(m.fs, filename, reader)
+	delete(m.docs, uri)
 }

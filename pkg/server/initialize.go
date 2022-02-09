@@ -17,6 +17,11 @@ func (s *Server) Initialize(_ context.Context,
 					IncludeText: true,
 				},
 			},
+			SignatureHelpProvider: &protocol.SignatureHelpOptions{
+				TriggerCharacters:   []string{"("},
+				RetriggerCharacters: []string{","},
+			},
+			DocumentSymbolProvider: true,
 		},
 	}, nil
 }

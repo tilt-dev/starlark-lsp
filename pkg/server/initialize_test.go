@@ -22,6 +22,11 @@ func TestInitialize(t *testing.T) {
 					IncludeText: true,
 				},
 			},
+			SignatureHelpProvider: &protocol.SignatureHelpOptions{
+				TriggerCharacters:   []string{"("},
+				RetriggerCharacters: []string{","},
+			},
+			DocumentSymbolProvider: true,
 		},
 	}
 	requireJsonEqual(t, expected, resp)

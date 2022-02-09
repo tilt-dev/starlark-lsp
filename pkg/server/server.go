@@ -11,11 +11,11 @@ import (
 type Server struct {
 	FallbackServer
 
-	docs   document.Manager
+	docs   *document.Manager
 	client protocol.Client
 }
 
-func NewServer(docManager document.Manager, client protocol.Client) *Server {
+func NewServer(docManager *document.Manager, client protocol.Client) *Server {
 	return &Server{
 		docs:   docManager,
 		client: client,

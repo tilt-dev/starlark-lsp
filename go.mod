@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/smacker/go-tree-sitter v0.0.0-20211116060328-db7fde9b5e82
+	github.com/smacker/go-tree-sitter v0.0.0-20220209044044-0d3022e933c3
 	github.com/spf13/afero v1.8.0
 	github.com/stretchr/testify v1.7.0
 	go.lsp.dev/jsonrpc2 v0.9.0

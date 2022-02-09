@@ -10,17 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/protocol"
+	"go.lsp.dev/uri"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
 	"github.com/tilt-dev/starlark-lsp/pkg/server"
 )
 
 type fixture struct {
 	t            testing.TB
 	ctx          context.Context
-	docManager   document.Manager
+	docManager   *document.Manager
 	editorConn   jsonrpc2.Conn
 	editorEvents chan jsonrpc2.Request
 }
@@ -30,6 +33,9 @@ func newFixture(t testing.TB) *fixture {
 	t.Cleanup(cancel)
 
 	logger := zaptest.NewLogger(t)
+	t.Cleanup(func() {
+		_ = logger.Sync()
+	})
 	ctx = protocol.WithLogger(ctx, logger)
 
 	editorConn, serverConn := net.Pipe()
@@ -42,7 +48,19 @@ func newFixture(t testing.TB) *fixture {
 
 	docManager := document.NewDocumentManager()
 	s := server.NewServer(docManager, client)
-	h := s.Handler(server.StandardMiddleware...)
+
+	// TODO(milas): AsyncHandler does not stop if the server is shut down which
+	// 	can cause panics in tests (due to logs being emitted after tests are
+	// 	done); should upstream a patch
+	testMiddleware := []middleware.Middleware{
+		middleware.Recover,
+		middleware.Error,
+		protocol.CancelHandler,
+		// jsonrpc2.AsyncHandler,
+		jsonrpc2.ReplyHandler,
+	}
+
+	h := s.Handler(testMiddleware...)
 	serverJsonConn.Go(protocol.WithLogger(ctx, logger.Named("server")), h)
 
 	editorStream := jsonrpc2.NewStream(editorConn)
@@ -59,7 +77,7 @@ func newFixture(t testing.TB) *fixture {
 
 	t.Cleanup(func() {
 		// this will close down the chain for us
-		// jsonrpc2.Conn -> jsonrpc2.Stream -> net.Conn
+		// jsonrpc2.Conn -> jsonrpc2.Stream -> io.ReadWriteCloser (net.Pipe)
 		_ = editorJsonConn.Close()
 		_ = serverJsonConn.Close()
 
@@ -67,7 +85,8 @@ func newFixture(t testing.TB) *fixture {
 
 		cancel()
 
-		_ = logger.Sync()
+		<-editorJsonConn.Done()
+		<-serverJsonConn.Done()
 	})
 
 	return &fixture{
@@ -77,6 +96,16 @@ func newFixture(t testing.TB) *fixture {
 		editorConn:   editorJsonConn,
 		editorEvents: editorChan,
 	}
+}
+
+func (f *fixture) loadDocument(path string, source string) {
+	f.t.Helper()
+	contents := []byte(source)
+	tree, err := analysis.Parse(f.ctx, contents)
+	require.NoErrorf(f.t, err, "Failed to parse document %q", path)
+
+	doc := document.NewDocument(contents, tree)
+	f.docManager.Write(uri.File(path), doc)
 }
 
 func (f *fixture) mustEditorCall(method string, params interface{}, result interface{}) jsonrpc2.ID {
