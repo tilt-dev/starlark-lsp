@@ -25,6 +25,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		_ = logger.Sync()
+	}()
 	ctx = protocol.WithLogger(ctx, logger)
 
 	logger.Debug("starlark-lsp launched")
