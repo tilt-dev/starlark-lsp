@@ -29,7 +29,7 @@ func main() {
 
 	logger.Debug("starlark-lsp launched")
 
-	doneCh := make(chan struct{})
+	doneCh := make(chan struct{}, 1)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
