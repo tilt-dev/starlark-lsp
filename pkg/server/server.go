@@ -9,16 +9,21 @@ import (
 )
 
 type Server struct {
+	// FallbackServer stubs out protocol.Server, returning "not found" errors
+	// for all methods; overridden methods on this object provide real
+	// implementations
 	FallbackServer
 
-	docs   *document.Manager
-	client protocol.Client
+	// docs tracks open files for the editor including their contents and parse tree
+	docs *document.Manager
+	// notifier can send broadcasts to the editor (e.g. diagnostics)
+	notifier protocol.Client
 }
 
 func NewServer(docManager *document.Manager, client protocol.Client) *Server {
 	return &Server{
-		docs:   docManager,
-		client: client,
+		docs:     docManager,
+		notifier: client,
 	}
 }
 
