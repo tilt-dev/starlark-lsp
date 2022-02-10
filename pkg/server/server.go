@@ -4,6 +4,7 @@ import (
 	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/protocol"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
 )
@@ -14,16 +15,19 @@ type Server struct {
 	// implementations
 	FallbackServer
 
-	// docs tracks open files for the editor including their contents and parse tree
-	docs *document.Manager
 	// notifier can send broadcasts to the editor (e.g. diagnostics)
 	notifier protocol.Client
+	// docs tracks open files for the editor including their contents and parse tree
+	docs *document.Manager
+	// analyzer performs queries on Document objects to build LSP responses
+	analyzer *analysis.Analyzer
 }
 
-func NewServer(docManager *document.Manager, notifier protocol.Client) *Server {
+func NewServer(notifier protocol.Client, docManager *document.Manager, analyzer *analysis.Analyzer) *Server {
 	return &Server{
-		docs:     docManager,
 		notifier: notifier,
+		docs:     docManager,
+		analyzer: analyzer,
 	}
 }
 

@@ -47,7 +47,8 @@ func newFixture(t testing.TB) *fixture {
 	client := protocol.ClientDispatcher(serverJsonConn, logger.Named("client"))
 
 	docManager := document.NewDocumentManager()
-	s := server.NewServer(docManager, client)
+	analyzer := analysis.NewAnalyzer()
+	s := server.NewServer(client, docManager, analyzer)
 
 	// TODO(milas): AsyncHandler does not stop if the server is shut down which
 	// 	can cause panics in tests (due to logs being emitted after tests are
