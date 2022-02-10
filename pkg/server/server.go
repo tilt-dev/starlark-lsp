@@ -20,10 +20,10 @@ type Server struct {
 	notifier protocol.Client
 }
 
-func NewServer(docManager *document.Manager, client protocol.Client) *Server {
+func NewServer(docManager *document.Manager, notifier protocol.Client) *Server {
 	return &Server{
 		docs:     docManager,
-		notifier: client,
+		notifier: notifier,
 	}
 }
 
