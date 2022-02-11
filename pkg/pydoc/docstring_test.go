@@ -18,14 +18,13 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParse(t *testing.T) {
 	t.Parallel()
 
-	Convey("Works", t, func() {
-		out := Parse(`An ACL entry: assigns given role (or roles) to given individuals or groups.
+	out := Parse(`An ACL entry: assigns given role (or roles) to given individuals or groups.
 
   Specifying an empty ACL entry is allowed. It is ignored everywhere. Useful for
   things like:
@@ -57,49 +56,48 @@ func TestParse(t *testing.T) {
   Empty:
 `)
 
-		So(out.Description, ShouldResemble, strings.Join([]string{
-			"An ACL entry: assigns given role (or roles) to given individuals or groups.",
-			"",
-			"Specifying an empty ACL entry is allowed. It is ignored everywhere. Useful for",
-			"things like:",
-			"",
-			"    luci.project(...)",
-		}, "\n"))
+	assert.Equal(t, strings.Join([]string{
+		"An ACL entry: assigns given role (or roles) to given individuals or groups.",
+		"",
+		"Specifying an empty ACL entry is allowed. It is ignored everywhere. Useful for",
+		"things like:",
+		"",
+		"    luci.project(...)",
+	}, "\n"), out.Description)
 
-		So(out.Fields, ShouldResemble, []FieldsBlock{
-			{
-				Title: "Args",
-				Fields: []Field{
-					{"roles", "a single role (as acl.role) or a list of roles to assign, blah-blah multiline."},
-					{"groups", "a single group name or a list of groups to assign the role to."},
-					{"stuff", "line1 line2 line3"},
-					{"users", "a single user email or a list of emails to assign the role to."},
-					{"empty", ""},
-				},
+	assert.Equal(t, []FieldsBlock{
+		{
+			Title: "Args",
+			Fields: []Field{
+				{"roles", "a single role (as acl.role) or a list of roles to assign, blah-blah multiline."},
+				{"groups", "a single group name or a list of groups to assign the role to."},
+				{"stuff", "line1 line2 line3"},
+				{"users", "a single user email or a list of emails to assign the role to."},
+				{"empty", ""},
 			},
-		})
+		},
+	}, out.Fields)
 
-		So(out.Remarks, ShouldResemble, []RemarkBlock{
-			{"Returns", "acl.entry struct, consider it opaque.\nMultiline."},
-			{"Note", "blah-blah."},
-			{"Empty", ""},
-		})
-	})
+	assert.Equal(t, []RemarkBlock{
+		{"Returns", "acl.entry struct, consider it opaque.\nMultiline."},
+		{"Note", "blah-blah."},
+		{"Empty", ""},
+	}, out.Remarks)
 }
 
 func TestNormalizedLines(t *testing.T) {
 	t.Parallel()
 
-	Convey("Empty", t, func() {
-		So(normalizedLines("  \n\n\t\t\n  "), ShouldHaveLength, 0)
+	t.Run("Empty", func(t *testing.T) {
+		assert.Len(t, normalizedLines("  \n\n\t\t\n  "), 0)
 	})
 
-	Convey("One line and some space", t, func() {
-		So(normalizedLines("  \n\n  Blah   \n\t\t\n  \n"), ShouldResemble, []string{"Blah"})
+	t.Run("One line and some space", func(t *testing.T) {
+		assert.Equal(t, []string{"Blah"}, normalizedLines("  \n\n  Blah   \n\t\t\n  \n"))
 	})
 
-	Convey("Deindents", t, func() {
-		So(normalizedLines(`First paragraph,
+	t.Run("Deindents", func(t *testing.T) {
+		actual := normalizedLines(`First paragraph,
 		perhaps multiline.
 
 		Second paragraph.
@@ -107,52 +105,37 @@ func TestNormalizedLines(t *testing.T) {
 			Deeper indentation.
 
 		Third paragraph.
-		`), ShouldResemble,
-			[]string{
-				"First paragraph,",
-				"perhaps multiline.",
-				"",
-				"Second paragraph.",
-				"",
-				"\tDeeper indentation.",
-				"",
-				"Third paragraph.",
-			})
+		`)
+
+		assert.Equal(t, []string{
+			"First paragraph,",
+			"perhaps multiline.",
+			"",
+			"Second paragraph.",
+			"",
+			"\tDeeper indentation.",
+			"",
+			"Third paragraph.",
+		}, actual)
 	})
 }
 
 func TestDeindent(t *testing.T) {
 	t.Parallel()
 
-	Convey("Space only", t, func() {
-		So(
-			deindent([]string{"  ", " \t\t  \t", ""}),
-			ShouldResemble,
-			[]string{"", "", ""},
-		)
+	t.Run("Space only", func(t *testing.T) {
+		assert.Equal(t, []string{"", "", ""}, deindent([]string{"  ", " \t\t  \t", ""}))
 	})
 
-	Convey("Nothing to deindent", t, func() {
-		So(
-			deindent([]string{"  ", "a  ", "b", "  "}),
-			ShouldResemble,
-			[]string{"", "a  ", "b", ""},
-		)
+	t.Run("Nothing to deindent", func(t *testing.T) {
+		assert.Equal(t, []string{"", "a  ", "b", ""}, deindent([]string{"  ", "a  ", "b", "  "}))
 	})
 
-	Convey("Deindention works", t, func() {
-		So(
-			deindent([]string{"   ", "", "  a", "  b", "    c"}),
-			ShouldResemble,
-			[]string{"", "", "a", "b", "  c"},
-		)
+	t.Run("Deindentation works", func(t *testing.T) {
+		assert.Equal(t, []string{"", "", "a", "b", "  c"}, deindent([]string{"   ", "", "  a", "  b", "    c"}))
 	})
 
-	Convey("Works with tabs too", t, func() {
-		So(
-			deindent([]string{"\t\t", "", "\ta", "\tb", "\t\tc"}),
-			ShouldResemble,
-			[]string{"", "", "a", "b", "\tc"},
-		)
+	t.Run("Works with tabs too", func(t *testing.T) {
+		assert.Equal(t, []string{"", "", "a", "b", "\tc"}, deindent([]string{"\t\t", "", "\ta", "\tb", "\t\tc"}))
 	})
 }
