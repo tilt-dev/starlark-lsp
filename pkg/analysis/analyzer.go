@@ -51,8 +51,8 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 	}
 
 	for n := node; n != nil; n = n.Parent() {
-		sigs := Functions(doc, n)
-		if sig, ok := sigs[fnName]; ok {
+		sig, ok := Function(doc, n, fnName)
+		if ok {
 			// TODO(milas): determine active parameter based on position
 			return &protocol.SignatureHelp{
 				Signatures:      []protocol.SignatureInformation{sig},

@@ -15,9 +15,11 @@ func mustQuery(pattern []byte) *sitter.Query {
 	return q
 }
 
+type QueryMatchFunc func(q *sitter.Query, match *sitter.QueryMatch) bool
+
 // Query executes a Tree-sitter S-expression query against a subtree and invokes
 // matchFn on each result.
-func Query(node *sitter.Node, pattern []byte, matchFn func(q *sitter.Query, match *sitter.QueryMatch)) {
+func Query(node *sitter.Node, pattern []byte, matchFn QueryMatchFunc) {
 	q := mustQuery(pattern)
 	qc := sitter.NewQueryCursor()
 	defer qc.Close()
@@ -27,6 +29,8 @@ func Query(node *sitter.Node, pattern []byte, matchFn func(q *sitter.Query, matc
 		if m == nil {
 			panic("tree-sitter returned nil match")
 		}
-		matchFn(q, m)
+		if !matchFn(q, m) {
+			return
+		}
 	}
 }

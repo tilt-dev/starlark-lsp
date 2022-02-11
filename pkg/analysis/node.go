@@ -10,10 +10,12 @@ import (
 const (
 	NodeTypeArgList     = "argument_list"
 	NodeTypeFunctionDef = "function_definition"
+	NodeTypeParameters  = "parameters"
 	NodeTypeIdentifier  = "identifier"
 
 	FieldName       = "name"
 	FieldParameters = "parameters"
+	FieldReturnType = "return_type"
 )
 
 // NodeAtPosition returns the most granular named descendant at a position.

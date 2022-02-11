@@ -16,7 +16,7 @@ func TestServer_SignatureHelp(t *testing.T) {
 
 	src := `
 def foo():
-  def foo(a, b: str, c=None, d: int=5):
+  def foo(a, b: str, c=None, d: int=5) -> List[str]:
     foo()
 `
 
@@ -32,7 +32,7 @@ def foo():
 
 	require.Len(t, resp.Signatures, 1)
 	assert.Equal(t, uint32(0), resp.ActiveSignature)
-	assert.Equal(t, "foo(a, b: str, c=None, d: int=5)", resp.Signatures[0].Label)
+	assert.Equal(t, "(a, b: str, c=None, d: int=5) -> List[str]", resp.Signatures[0].Label)
 }
 
 func TestServer_SignatureHelp_ErrorAtCursor(t *testing.T) {
@@ -59,7 +59,7 @@ foo(
 
 	require.Len(t, resp.Signatures, 1)
 	assert.Equal(t, uint32(0), resp.ActiveSignature)
-	assert.Equal(t, "foo()", resp.Signatures[0].Label)
+	assert.Equal(t, "() -> None", resp.Signatures[0].Label)
 }
 
 func TestServer_SignatureHelp_OutOfScope(t *testing.T) {
