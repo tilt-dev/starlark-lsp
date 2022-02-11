@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -11,13 +12,15 @@ import (
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/server"
 )
 
 type startCmd struct {
 	*cobra.Command
-	address string
+	address         string
+	builtinDefPaths []string
 }
 
 func newStartCmd() *startCmd {
@@ -27,20 +30,25 @@ func newStartCmd() *startCmd {
 		},
 	}
 
-	cmd.RunE = func(cc *cobra.Command, args []string) error {
+	cmd.Command.RunE = func(cc *cobra.Command, args []string) error {
 		ctx := cc.Context()
-		if cmd.address != "" {
-			return runSocketServer(ctx, cmd.address)
+		analyzer, err := createAnalyzer(ctx, cmd.builtinDefPaths)
+		if err != nil {
+			return fmt.Errorf("failed to create analyzer: %v", err)
 		}
-		return runStdioServer(ctx)
+		if cmd.address != "" {
+			return runSocketServer(ctx, cmd.address, analyzer)
+		}
+		return runStdioServer(ctx, analyzer)
 	}
 
 	cmd.Flags().StringVar(&cmd.address, "address", "", "Address (hostname:port) to listen on")
+	cmd.Flags().StringArrayVar(&cmd.builtinDefPaths, "builtin-paths", nil, "")
 
 	return &cmd
 }
 
-func runStdioServer(ctx context.Context) error {
+func runStdioServer(ctx context.Context, analyzer *analysis.Analyzer) error {
 	logger := protocol.LoggerFromContext(ctx)
 	logger.Debug("running in stdio mode")
 	stdio := struct {
@@ -50,7 +58,7 @@ func runStdioServer(ctx context.Context) error {
 		os.Stdin,
 		os.Stdout,
 	}
-	conn := launchServer(ctx, stdio)
+	conn := launchHandler(ctx, stdio, analyzer)
 	select {
 	case <-ctx.Done():
 	case <-conn.Done():
@@ -62,7 +70,7 @@ func runStdioServer(ctx context.Context) error {
 	return nil
 }
 
-func runSocketServer(ctx context.Context, addr string) error {
+func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyzer) error {
 	var lc net.ListenConfig
 	listener, err := lc.Listen(ctx, "tcp4", addr)
 	if err != nil {
@@ -87,21 +95,53 @@ func runSocketServer(ctx context.Context, addr string) error {
 		}
 		logger.Debug("accepted connection",
 			zap.String("remote_addr", conn.RemoteAddr().String()))
-		launchServer(ctx, conn)
+		launchHandler(ctx, conn, analyzer)
 	}
 }
 
-func launchServer(ctx context.Context, conn io.ReadWriteCloser) jsonrpc2.Conn {
+func initializeConn(conn io.ReadWriteCloser, logger *zap.Logger) (jsonrpc2.Conn, protocol.Client) {
 	stream := jsonrpc2.NewStream(conn)
 	jsonConn := jsonrpc2.NewConn(stream)
-
-	logger := protocol.LoggerFromContext(ctx)
 	notifier := protocol.ClientDispatcher(jsonConn, logger.Named("notifier"))
 
-	docManager := document.NewDocumentManager()
-	s := server.NewServer(docManager, notifier)
-	h := s.Handler(server.StandardMiddleware...)
+	return jsonConn, notifier
+}
 
+func createHandler(notifier protocol.Client, analyzer *analysis.Analyzer) jsonrpc2.Handler {
+	docManager := document.NewDocumentManager()
+	s := server.NewServer(notifier, docManager, analyzer)
+	h := s.Handler(server.StandardMiddleware...)
+	return h
+}
+
+func launchHandler(ctx context.Context, conn io.ReadWriteCloser, analyzer *analysis.Analyzer) jsonrpc2.Conn {
+	logger := protocol.LoggerFromContext(ctx)
+	jsonConn, notifier := initializeConn(conn, logger)
+	h := createHandler(notifier, analyzer)
 	jsonConn.Go(ctx, h)
 	return jsonConn
+}
+
+func createAnalyzer(ctx context.Context, builtinDefPaths []string) (*analysis.Analyzer, error) {
+	var opts []analysis.AnalyzerOption
+
+	builtins, err := LoadBuiltins(ctx, builtinDefPaths...)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := protocol.LoggerFromContext(ctx)
+	if len(builtins.Functions) != 0 {
+		logger.Debug("registered built-in functions",
+			zap.Int("count", len(builtins.Functions)))
+		opts = append(opts, analysis.WithBuiltinFunctions(builtins.Functions))
+	}
+
+	if len(builtins.Symbols) != 0 {
+		logger.Debug("registered built-in symbols",
+			zap.Int("count", len(builtins.Symbols)))
+		opts = append(opts, analysis.WithBuiltinSymbols(builtins.Symbols))
+	}
+
+	return analysis.NewAnalyzer(opts...), nil
 }
