@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/smacker/go-tree-sitter v0.0.0-20220209044044-0d3022e933c3
-	github.com/smartystreets/goconvey v1.7.2
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	go.lsp.dev/jsonrpc2 v0.9.0
@@ -17,13 +16,10 @@ require (
 require (
 	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/segmentio/encoding v0.2.7 // indirect
-	github.com/smartystreets/assertions v1.2.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.lsp.dev/pkg v0.0.0-20210323044036-f7deec69b52e // indirect
 	go.uber.org/atomic v1.9.0 // indirect
