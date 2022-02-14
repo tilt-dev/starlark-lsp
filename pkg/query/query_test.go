@@ -117,7 +117,7 @@ func (f *queryFixture) assertCapture(name string, value string, captures []sitte
 	captureValues := make(map[string]string, len(captures))
 	for _, c := range captures {
 		captureName := f.q.CaptureNameForId(c.Index)
-		captureValue := c.Node.Content(f.input)
+		captureValue := f.nodeContents(c.Node)
 		captureValues[captureName] = captureValue
 	}
 

@@ -29,7 +29,7 @@ type fixture struct {
 }
 
 func newFixture(t testing.TB) *fixture {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
 
 	logger := zaptest.NewLogger(t)
@@ -44,11 +44,11 @@ func newFixture(t testing.TB) *fixture {
 	serverJsonConn := jsonrpc2.NewConn(serverStream)
 	// the client is the _server_ client used to broadcast events to the editor,
 	// so it needs to write to the server connection, not the editor connection
-	client := protocol.ClientDispatcher(serverJsonConn, logger.Named("client"))
+	notifier := protocol.ClientDispatcher(serverJsonConn, logger.Named("notify"))
 
 	docManager := document.NewDocumentManager()
 	analyzer := analysis.NewAnalyzer()
-	s := server.NewServer(client, docManager, analyzer)
+	s := server.NewServer(notifier, docManager, analyzer)
 
 	// TODO(milas): AsyncHandler does not stop if the server is shut down which
 	// 	can cause panics in tests (due to logs being emitted after tests are
@@ -66,13 +66,17 @@ func newFixture(t testing.TB) *fixture {
 
 	editorStream := jsonrpc2.NewStream(editorConn)
 	editorJsonConn := jsonrpc2.NewConn(editorStream)
-	editorChan := make(chan jsonrpc2.Request)
+	editorChan := make(chan jsonrpc2.Request, 20)
 	editorJsonConn.Go(protocol.WithLogger(ctx, logger.Named("editor")),
 		func(ctx context.Context, _ jsonrpc2.Replier, req jsonrpc2.Request) error {
 			protocol.LoggerFromContext(ctx).Debug("received message",
 				zap.String("method", req.Method()),
 				zap.Int("len", len(req.Params())))
-			editorChan <- req
+			select {
+			case editorChan <- req:
+			default:
+				panic("editor channel was full")
+			}
 			return nil
 		})
 
@@ -116,7 +120,12 @@ func (f *fixture) mustEditorCall(method string, params interface{}, result inter
 	return id
 }
 
-func (f *fixture) nextEditorEvent(method string, params interface{}) {
+// requireNextEditorEvent fails the test if the next event broadcast to the
+// editor from the server is not for the given method, fails deserialization,
+// or is not received within a reasonable amount of time.
+//
+// Tests can assert further on the unmarshalled parameters.
+func (f *fixture) requireNextEditorEvent(method string, params interface{}) {
 	f.t.Helper()
 
 	select {
