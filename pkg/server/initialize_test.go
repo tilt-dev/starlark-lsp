@@ -3,6 +3,7 @@ package server_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"go.lsp.dev/protocol"
 )
 
@@ -30,4 +31,9 @@ func TestInitialize(t *testing.T) {
 		},
 	}
 	requireJsonEqual(t, expected, resp)
+
+	var logParams protocol.LogMessageParams
+	f.requireNextEditorEvent(protocol.MethodWindowLogMessage, &logParams)
+	assert.Equal(t, protocol.MessageTypeLog, logParams.Type)
+	assert.Equal(t, "Starlark LSP server initialized", logParams.Message)
 }
