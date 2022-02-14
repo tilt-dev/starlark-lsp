@@ -92,7 +92,7 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 	pos protocol.Position) (fnName string, argIndex uint32) {
 	for n := node; n != nil; n = n.Parent() {
 		if n.Type() == "call" {
-			fnName = n.ChildByFieldName("function").Content(doc.Contents)
+			fnName = doc.Content(n.ChildByFieldName("function"))
 			argIndex = possibleActiveParam(doc, n.ChildByFieldName("arguments").Child(0), pos)
 			return fnName, argIndex
 		} else if n.HasError() {
@@ -102,8 +102,8 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 			possibleCall := n.NamedChild(0)
 			if possibleCall != nil && possibleCall.Type() == query.NodeTypeIdentifier {
 				possibleParen := possibleCall.NextSibling()
-				if possibleParen != nil && !possibleParen.IsNamed() && possibleParen.Content(doc.Contents) == "(" {
-					fnName = possibleCall.Content(doc.Contents)
+				if possibleParen != nil && !possibleParen.IsNamed() && doc.Content(possibleParen) == "(" {
+					fnName = doc.Content(possibleCall)
 					argIndex = possibleActiveParam(doc, possibleParen.NextSibling(), pos)
 					return fnName, argIndex
 				}
@@ -123,7 +123,7 @@ func possibleActiveParam(doc document.Document, node *sitter.Node, pos protocol.
 			break
 		}
 
-		if !n.IsNamed() && n.Content(doc.Contents) == "," {
+		if !n.IsNamed() && doc.Content(n) == "," {
 			argIndex++
 		}
 	}

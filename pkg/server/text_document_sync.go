@@ -6,7 +6,6 @@ import (
 
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
@@ -18,8 +17,7 @@ func (s *Server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
 	}
 
-	doc := document.NewDocument(contents, tree)
-	s.docs.Write(uri, doc)
+	s.docs.Write(uri, contents, tree)
 	return nil
 }
 
@@ -36,8 +34,7 @@ func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
 	}
 
-	doc := document.NewDocument(contents, tree)
-	s.docs.Write(uri, doc)
+	s.docs.Write(uri, contents, tree)
 	return nil
 }
 
@@ -49,8 +46,7 @@ func (s *Server) DidSave(ctx context.Context, params *protocol.DidSaveTextDocume
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
 	}
 
-	doc := document.NewDocument(contents, tree)
-	s.docs.Write(uri, doc)
+	s.docs.Write(uri, contents, tree)
 	return nil
 }
 

@@ -26,10 +26,10 @@ func PointToPosition(point sitter.Point) protocol.Position {
 // NamedNodeAtPosition returns the most granular named descendant at a position.
 func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
 	pt := PositionToPoint(pos)
-	if doc.Tree == nil {
+	if doc.Tree() == nil {
 		return nil, false
 	}
-	node := doc.Tree.RootNode().NamedDescendantForPointRange(pt, pt)
+	node := doc.Tree().RootNode().NamedDescendantForPointRange(pt, pt)
 	if node != nil {
 		return node, true
 	}

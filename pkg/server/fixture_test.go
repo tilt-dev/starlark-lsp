@@ -3,10 +3,16 @@ package server_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
+	"runtime/debug"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/protocol"
@@ -47,7 +53,7 @@ func newFixture(t testing.TB) *fixture {
 	// so it needs to write to the server connection, not the editor connection
 	notifier := protocol.ClientDispatcher(serverJsonConn, logger.Named("notify"))
 
-	docManager := document.NewDocumentManager()
+	docManager := newDocumentManager(t)
 	analyzer := analysis.NewAnalyzer()
 	s := server.NewServer(notifier, docManager, analyzer)
 
@@ -104,14 +110,24 @@ func newFixture(t testing.TB) *fixture {
 	}
 }
 
-func (f *fixture) loadDocument(path string, source string) {
+func (f *fixture) mustWriteDocument(path string, source string) {
 	f.t.Helper()
 	contents := []byte(source)
 	tree, err := query.Parse(f.ctx, contents)
 	require.NoErrorf(f.t, err, "Failed to parse document %q", path)
+	f.docManager.Write(uri.File(path), contents, tree)
+}
 
-	doc := document.NewDocument(contents, tree)
-	f.docManager.Write(uri.File(path), doc)
+func (f *fixture) requireDocContents(path string, input string) {
+	f.t.Helper()
+	doc, err := f.docManager.Read(uri.File(path))
+	require.NoErrorf(f.t, err, "Failed to read document %q", path)
+	defer doc.Close()
+	require.NotNil(f.t, doc.Tree(), "Document tree was nil")
+	require.NotNil(f.t, doc.Tree().RootNode(),
+		"Document root node was nil")
+	require.Equal(f.t, input, doc.Content(doc.Tree().RootNode()),
+		"Document contents did not match")
 }
 
 func (f *fixture) mustEditorCall(method string, params interface{}, result interface{}) jsonrpc2.ID {
@@ -141,4 +157,117 @@ func (f *fixture) requireNextEditorEvent(method string, params interface{}) {
 			"Could not unmarshal params for %s event", method)
 		return
 	}
+}
+
+func newDocumentManager(t testing.TB) *document.Manager {
+	t.Helper()
+
+	var mu sync.Mutex
+	openDocs := make(map[*testDocument][]byte)
+	copyFunc := func(testDoc *testDocument) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		if existing, ok := openDocs[testDoc]; ok {
+			require.Fail(t, "Copied document already exists in open document list, was created at\n%s\n", existing)
+		}
+		openDocs[testDoc] = debug.Stack()
+	}
+	closeFunc := func(testDoc *testDocument) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		_, ok := openDocs[testDoc]
+		if !ok {
+			require.Fail(t, "Close for document that was not tracked")
+		}
+		delete(openDocs, testDoc)
+	}
+
+	newDocFunc := func(input []byte, tree *sitter.Tree) document.Document {
+		testDoc := &testDocument{
+			doc:     document.NewDocument(input, tree),
+			onCopy:  copyFunc,
+			onClose: closeFunc,
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		openDocs[testDoc] = debug.Stack()
+		return testDoc
+	}
+
+	mgr := document.NewDocumentManager(
+		document.WithNewDocumentFunc(newDocFunc),
+	)
+
+	t.Cleanup(func() {
+		t.Helper()
+
+		for _, key := range mgr.Keys() {
+			mgr.Remove(key)
+		}
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		if len(openDocs) == 0 {
+			return
+		}
+
+		var stacks []string
+		for _, stack := range openDocs {
+			lines := strings.Split(string(stack), "\n")
+			if len(lines) > 7 {
+				// stack trace should start with some things we don't care about:
+				// 	1. goroutine line
+				// 	2. 2x lines for `debug.Stack()` (call site + file info)
+				// 	3. 2x lines for our anonymous new/copy func (call site + file info)
+				// 	4. 2x lines for Document::Copy (call site + file info)
+				lines = lines[7:]
+			}
+			stacks = append(stacks, strings.TrimSpace(strings.Join(lines, "\n")))
+		}
+
+		const divider = "\n------------------------------\n"
+		assert.Failf(t,
+			fmt.Sprintf("%d document(s) were not closed", len(stacks)),
+			"Stack traces for document creation:%s%s", divider, strings.Join(stacks, divider))
+	})
+
+	return mgr
+}
+
+type testDocument struct {
+	doc     document.Document
+	onCopy  func(*testDocument)
+	onClose func(*testDocument)
+}
+
+var _ document.Document = &testDocument{}
+
+func (t *testDocument) Content(n *sitter.Node) string {
+	return t.doc.Content(n)
+}
+
+func (t *testDocument) Tree() *sitter.Tree {
+	return t.doc.Tree()
+}
+
+func (t *testDocument) Copy() document.Document {
+	copiedDoc := &testDocument{
+		doc:     t.doc.Copy(),
+		onCopy:  t.onCopy,
+		onClose: t.onClose,
+	}
+	if copiedDoc.onCopy != nil {
+		copiedDoc.onCopy(copiedDoc)
+	}
+	return copiedDoc
+}
+
+func (t *testDocument) Close() {
+	if t.onClose != nil {
+		t.onClose(t)
+	}
+	t.doc.Close()
 }

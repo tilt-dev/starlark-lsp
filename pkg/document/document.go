@@ -2,32 +2,54 @@ package document
 
 import sitter "github.com/smacker/go-tree-sitter"
 
-type Document struct {
-	// Contents of the file as they exist in the editor buffer.
-	Contents []byte
+type Document interface {
+	Content(n *sitter.Node) string
 
-	// Tree represents the parsed version of the document.
-	Tree *sitter.Tree
+	Tree() *sitter.Tree
+
+	Copy() Document
+
+	Close()
 }
 
-func NewDocument(contents []byte, tree *sitter.Tree) Document {
-	return Document{
-		Contents: contents,
-		Tree:     tree,
+type NewDocumentFunc func(input []byte, tree *sitter.Tree) Document
+
+func NewDocument(input []byte, tree *sitter.Tree) Document {
+	return document{
+		input: input,
+		tree:  tree,
 	}
 }
 
-func (d Document) Close() {
-	d.Tree.Close()
+type document struct {
+	// input is the file as it exists in the editor buffer.
+	input []byte
+
+	// tree represents the parsed version of the document.
+	tree *sitter.Tree
 }
 
-// shallowClone creates a shallow copy of the Document.
+var _ Document = document{}
+
+func (d document) Content(n *sitter.Node) string {
+	return n.Content(d.input)
+}
+
+func (d document) Tree() *sitter.Tree {
+	return d.tree
+}
+
+func (d document) Close() {
+	d.tree.Close()
+}
+
+// Copy creates a shallow copy of the Document.
 //
 // The Contents byte slice is returned as-is.
 // A shallow copy of the Tree is made, as Tree-sitter trees are not thread-safe.
-func (d Document) shallowClone() Document {
-	return Document{
-		Contents: d.Contents,
-		Tree:     d.Tree.Copy(),
+func (d document) Copy() Document {
+	return document{
+		input: d.input,
+		tree:  d.tree.Copy(),
 	}
 }

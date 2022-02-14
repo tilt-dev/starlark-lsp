@@ -10,7 +10,7 @@ import (
 // TODO(milas): this currently only looks for assignment expressions
 func DocumentSymbols(doc document.Document) []protocol.SymbolInformation {
 	var symbols []protocol.SymbolInformation
-	for n := doc.Tree.RootNode().NamedChild(0); n != nil; n = n.NextNamedSibling() {
+	for n := doc.Tree().RootNode().NamedChild(0); n != nil; n = n.NextNamedSibling() {
 		var symbol protocol.SymbolInformation
 
 		if n.Type() == "expression_statement" {
@@ -18,7 +18,7 @@ func DocumentSymbols(doc document.Document) []protocol.SymbolInformation {
 			if assignment == nil || assignment.Type() != "assignment" {
 				continue
 			}
-			symbol.Name = assignment.ChildByFieldName("left").Content(doc.Contents)
+			symbol.Name = doc.Content(assignment.ChildByFieldName("left"))
 			kind := nodeTypeToSymbolKind(assignment.ChildByFieldName("right"))
 			if kind == 0 {
 				kind = protocol.SymbolKindVariable

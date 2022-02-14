@@ -35,6 +35,7 @@ func LoadBuiltins(ctx context.Context, paths ...string) (Builtins, error) {
 		doc := document.NewDocument(contents, tree)
 		docFunctions := query.Functions(doc, tree.RootNode())
 		// symbols := analysis.DocumentSymbols(doc)
+		doc.Close()
 
 		for fn, sig := range docFunctions {
 			if _, ok := functions[fn]; ok {

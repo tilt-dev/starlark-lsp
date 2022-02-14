@@ -4,18 +4,35 @@ import (
 	"os"
 	"sync"
 
+	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/uri"
 )
 
+type ManagerOpt func(manager *Manager)
+
 // Manager provides simplified file read/write operations for the LSP server.
 type Manager struct {
-	mu   sync.Mutex
-	docs map[uri.URI]Document
+	mu         sync.Mutex
+	docs       map[uri.URI]Document
+	newDocFunc NewDocumentFunc
 }
 
-func NewDocumentManager() *Manager {
-	return &Manager{
-		docs: make(map[uri.URI]Document),
+func NewDocumentManager(opts ...ManagerOpt) *Manager {
+	m := Manager{
+		docs:       make(map[uri.URI]Document),
+		newDocFunc: NewDocument,
+	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	return &m
+}
+
+func WithNewDocumentFunc(newDocFunc NewDocumentFunc) ManagerOpt {
+	return func(manager *Manager) {
+		manager.newDocFunc = newDocFunc
 	}
 }
 
@@ -27,23 +44,33 @@ func (m *Manager) Read(uri uri.URI) (Document, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if doc, ok := m.docs[uri]; ok {
-		return doc.shallowClone(), nil
+		return doc.Copy(), nil
 	}
-	return Document{}, os.ErrNotExist
+	return nil, os.ErrNotExist
 }
 
 // Write creates or replaces the contents of the file for the given URI.
-func (m *Manager) Write(uri uri.URI, doc Document) {
+func (m *Manager) Write(uri uri.URI, input []byte, tree *sitter.Tree) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.removeAndCleanup(uri)
-	m.docs[uri] = doc
+	m.docs[uri] = m.newDocFunc(input, tree)
 }
 
 func (m *Manager) Remove(uri uri.URI) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.removeAndCleanup(uri)
+}
+
+func (m *Manager) Keys() []uri.URI {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	keys := make([]uri.URI, 0, len(m.docs))
+	for k := range m.docs {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // removeAndCleanup removes a Document and frees associated resources.

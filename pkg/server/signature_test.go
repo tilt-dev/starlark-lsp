@@ -20,7 +20,7 @@ def foo():
     foo(a,,)
 `
 
-	f.loadDocument("./test.star", src)
+	f.mustWriteDocument("./test.star", src)
 
 	var resp protocol.SignatureHelp
 	f.mustEditorCall(protocol.MethodTextDocumentSignatureHelp, protocol.SignatureHelpParams{
@@ -63,7 +63,7 @@ def foo(a, b):
 foo(a,
 `
 
-	f.loadDocument("./test.star", src)
+	f.mustWriteDocument("./test.star", src)
 
 	var resp protocol.SignatureHelp
 	f.mustEditorCall(protocol.MethodTextDocumentSignatureHelp, protocol.SignatureHelpParams{
@@ -106,7 +106,7 @@ def foo():
 bar()
 `
 
-	f.loadDocument("./test.star", src)
+	f.mustWriteDocument("./test.star", src)
 
 	var resp protocol.SignatureHelp
 	f.mustEditorCall(protocol.MethodTextDocumentSignatureHelp, protocol.SignatureHelpParams{

@@ -68,7 +68,7 @@ func extractParameters(doc document.Document, fnDocs docstring.Parsed,
 		var param parameter
 
 		for _, c := range match.Captures {
-			content := c.Node.Content(doc.Contents)
+			content := doc.Content(c.Node)
 			switch q.CaptureNameForId(c.Index) {
 			case "name":
 				param.name = content

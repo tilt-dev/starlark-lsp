@@ -15,6 +15,7 @@ func (s *Server) DocumentSymbol(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	defer doc.Close()
 
 	symbols := query.DocumentSymbols(doc)
 	result := make([]interface{}, len(symbols))
