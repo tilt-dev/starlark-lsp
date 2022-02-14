@@ -26,7 +26,27 @@ type startCmd struct {
 func newStartCmd() *startCmd {
 	cmd := startCmd{
 		Command: &cobra.Command{
-			Use: "start",
+			Use:   "start",
+			Short: "Start the Starlark LSP server",
+			Long: `Start the Starlark LSP server.
+
+By default, the server will run in stdio mode: requests should be written to
+stdin and responses will be written to stdout. (All logging is _always_ done
+to stderr.)
+
+For socket mode, pass the --address option.
+`,
+			Example: `
+# Launch in stdio mode with extra logging
+starlark-lsp start --verbose
+
+# Listen on all interfaces on port 8765
+starlark-lsp start --address=":8765"
+
+# Provide type-stub style files to parse and treat as additional language
+# built-ins
+starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
+`,
 		},
 	}
 
@@ -42,8 +62,10 @@ func newStartCmd() *startCmd {
 		return runStdioServer(ctx, analyzer)
 	}
 
-	cmd.Flags().StringVar(&cmd.address, "address", "", "Address (hostname:port) to listen on")
-	cmd.Flags().StringArrayVar(&cmd.builtinDefPaths, "builtin-paths", nil, "")
+	cmd.Flags().StringVar(&cmd.address, "address", "",
+		"Address (hostname:port) to listen on")
+	cmd.Flags().StringArrayVar(&cmd.builtinDefPaths, "builtin-paths", nil,
+		"Paths to files to parse and treat as additional language builtins")
 
 	return &cmd
 }
