@@ -7,6 +7,7 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 )
 
@@ -54,8 +55,12 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 	}
 
 	fnName := n.ChildByFieldName(FieldName).Content(doc.Contents)
+
+	fnDocs := extractDocstring(doc, n.ChildByFieldName(FieldBody))
+	docs := fnDocs.Description
+
 	// params might be empty but a node for `()` will still exist
-	params := extractParameters(doc, n.ChildByFieldName(FieldParameters))
+	params := extractParameters(doc, fnDocs, n.ChildByFieldName(FieldParameters))
 	// unlike name + params, returnType is optional
 	var returnType string
 	if rtNode := n.ChildByFieldName(FieldReturnType); rtNode != nil {
@@ -65,6 +70,10 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 	sig := protocol.SignatureInformation{
 		Label:      signatureLabel(params, returnType),
 		Parameters: params,
+		Documentation: protocol.MarkupContent{
+			Kind:  protocol.Markdown,
+			Value: docs,
+		},
 	}
 
 	return fnName, sig
@@ -89,4 +98,29 @@ func signatureLabel(params []protocol.ParameterInformation, returnType string) s
 	sb.WriteString(") -> ")
 	sb.WriteString(returnType)
 	return sb.String()
+}
+
+func extractDocstring(doc document.Document, n *sitter.Node) docstring.Parsed {
+	if n.Type() != NodeTypeBlock {
+		panic(fmt.Errorf("invalid node type: %s", n.Type()))
+	}
+
+	if exprNode := n.NamedChild(0); exprNode != nil && exprNode.Type() == NodeTypeExpressionStatement {
+		if docStringNode := exprNode.NamedChild(0); docStringNode != nil && docStringNode.Type() == NodeTypeString {
+			// TODO(milas): need to do nested quote un-escaping (generally
+			// 	docstrings use triple-quoted strings so this isn't a huge
+			// 	issue at least)
+			rawDocString := docStringNode.Content(doc.Contents)
+			// this is the raw source, so it will be wrapped with with """ / ''' / " / '
+			// (technically this could trim off too much but not worth the
+			// headache to deal with valid leading/trailing quotes)
+			rawDocString = strings.Trim(rawDocString, `"'`)
+			return docstring.Parse(rawDocString)
+		}
+	}
+
+	// we don't return any sort of bool about success because even if there's
+	// a string in the right place in the syntax tree, it might not even be a
+	// valid docstring, so this is all on a best effort basis
+	return docstring.Parsed{}
 }

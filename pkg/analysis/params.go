@@ -6,6 +6,7 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
@@ -17,17 +18,33 @@ type parameter struct {
 	content      string
 }
 
-func (p parameter) paramInfo() protocol.ParameterInformation {
+func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformation {
+	var docs string
+	for _, fieldsBlock := range fnDocs.Fields {
+		if fieldsBlock.Title != "Args" {
+			continue
+		}
+		for _, f := range fieldsBlock.Fields {
+			if f.Name == p.name {
+				docs = f.Desc
+			}
+		}
+	}
+
+	// TODO(milas): revisit labels - with type hints this can make signatures
+	// 	really long; it might make sense to only include param name and default
+	// 	value (if any)
 	return protocol.ParameterInformation{
 		Label: p.content,
-		// TODO(milas): this method should accept a docstring
 		Documentation: protocol.MarkupContent{
-			Kind: protocol.Markdown,
+			Kind:  protocol.Markdown,
+			Value: docs,
 		},
 	}
 }
 
-func extractParameters(doc document.Document, node *sitter.Node) []protocol.ParameterInformation {
+func extractParameters(doc document.Document, fnDocs docstring.Parsed,
+	node *sitter.Node) []protocol.ParameterInformation {
 	if node.Type() != NodeTypeParameters {
 		// A query is used here because there's several different node types
 		// for parameter values, and the query handles normalization gracefully
@@ -61,7 +78,7 @@ func extractParameters(doc document.Document, node *sitter.Node) []protocol.Para
 			}
 		}
 
-		params = append(params, param.paramInfo())
+		params = append(params, param.paramInfo(fnDocs))
 		return true
 	})
 	return params

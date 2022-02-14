@@ -115,7 +115,7 @@ type RemarkBlock struct {
 // The expected grammar (loosely, since it is complicated by indentation
 // handling):
 //
-//     Docstring -> Block*
+//     Parsed -> Block*
 //     Block -> []string | (FieldsBlock | RemarkBlock)*
 //     Fields -> ("Args:" | "Field:" | ...) Field+
 //     Field -> "  <name>:" []string
@@ -123,8 +123,8 @@ type RemarkBlock struct {
 //
 // Never fails. May return incomplete or even empty object if the string format
 // is unrecognized.
-func Parse(doc string) *Parsed {
-	out := &Parsed{}
+func Parse(doc string) Parsed {
+	var out Parsed
 	lines := normalizedLines(doc)
 
 	var descLines []string

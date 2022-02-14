@@ -8,14 +8,18 @@ import (
 )
 
 const (
-	NodeTypeArgList     = "argument_list"
-	NodeTypeFunctionDef = "function_definition"
-	NodeTypeParameters  = "parameters"
-	NodeTypeIdentifier  = "identifier"
+	NodeTypeArgList             = "argument_list"
+	NodeTypeFunctionDef         = "function_definition"
+	NodeTypeParameters          = "parameters"
+	NodeTypeIdentifier          = "identifier"
+	NodeTypeExpressionStatement = "expression_statement"
+	NodeTypeString              = "string"
+	NodeTypeBlock               = "block"
 
 	FieldName       = "name"
 	FieldParameters = "parameters"
 	FieldReturnType = "return_type"
+	FieldBody       = "body"
 )
 
 // NodeAtPosition returns the most granular named descendant at a position.
