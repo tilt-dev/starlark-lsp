@@ -17,6 +17,7 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 	"github.com/tilt-dev/starlark-lsp/pkg/server"
 )
 
@@ -106,7 +107,7 @@ func newFixture(t testing.TB) *fixture {
 func (f *fixture) loadDocument(path string, source string) {
 	f.t.Helper()
 	contents := []byte(source)
-	tree, err := analysis.Parse(f.ctx, contents)
+	tree, err := query.Parse(f.ctx, contents)
 	require.NoErrorf(f.t, err, "Failed to parse document %q", path)
 
 	doc := document.NewDocument(contents, tree)

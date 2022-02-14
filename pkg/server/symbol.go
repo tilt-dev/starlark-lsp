@@ -5,7 +5,7 @@ import (
 
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 func (s *Server) DocumentSymbol(ctx context.Context,
@@ -16,7 +16,7 @@ func (s *Server) DocumentSymbol(ctx context.Context,
 		return nil, err
 	}
 
-	symbols := analysis.DocumentSymbols(doc)
+	symbols := query.DocumentSymbols(doc)
 	result := make([]interface{}, len(symbols))
 	for i := range symbols {
 		symbols[i].Location.URI = params.TextDocument.URI

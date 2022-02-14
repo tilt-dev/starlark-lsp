@@ -1,14 +1,14 @@
-package analysis
+package query
 
 import (
 	"fmt"
 
-	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
+
+	sitter "github.com/smacker/go-tree-sitter"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 type parameter struct {
@@ -61,7 +61,7 @@ func extractParameters(doc document.Document, fnDocs docstring.Parsed,
 	}
 
 	var params []protocol.ParameterInformation
-	Query(node, query.FunctionParameters, func(q *sitter.Query, match *sitter.QueryMatch) bool {
+	Query(node, FunctionParameters, func(q *sitter.Query, match *sitter.QueryMatch) bool {
 		var param parameter
 
 		for _, c := range match.Captures {
