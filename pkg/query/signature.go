@@ -56,9 +56,7 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 	}
 
 	fnName := n.ChildByFieldName(FieldName).Content(doc.Contents)
-
 	fnDocs := extractDocstring(doc, n.ChildByFieldName(FieldBody))
-	docs := fnDocs.Description
 
 	// params might be empty but a node for `()` will still exist
 	params := extractParameters(doc, fnDocs, n.ChildByFieldName(FieldParameters))
@@ -71,10 +69,13 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 	sig := protocol.SignatureInformation{
 		Label:      signatureLabel(params, returnType),
 		Parameters: params,
-		Documentation: protocol.MarkupContent{
+	}
+
+	if fnDocs.Description != "" {
+		sig.Documentation = protocol.MarkupContent{
 			Kind:  protocol.Markdown,
-			Value: docs,
-		},
+			Value: fnDocs.Description,
+		}
 	}
 
 	return fnName, sig

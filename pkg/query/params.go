@@ -19,28 +19,31 @@ type parameter struct {
 }
 
 func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformation {
-	var docs string
+	// TODO(milas): revisit labels - with type hints this can make signatures
+	// 	really long; it might make sense to only include param name and default
+	// 	value (if any)
+	pi := protocol.ParameterInformation{Label: p.content}
+
+	var docContent string
 	for _, fieldsBlock := range fnDocs.Fields {
 		if fieldsBlock.Title != "Args" {
 			continue
 		}
 		for _, f := range fieldsBlock.Fields {
 			if f.Name == p.name {
-				docs = f.Desc
+				docContent = f.Desc
 			}
 		}
 	}
 
-	// TODO(milas): revisit labels - with type hints this can make signatures
-	// 	really long; it might make sense to only include param name and default
-	// 	value (if any)
-	return protocol.ParameterInformation{
-		Label: p.content,
-		Documentation: protocol.MarkupContent{
+	if docContent != "" {
+		pi.Documentation = protocol.MarkupContent{
 			Kind:  protocol.Markdown,
-			Value: docs,
-		},
+			Value: docContent,
+		}
 	}
+
+	return pi
 }
 
 func extractParameters(doc document.Document, fnDocs docstring.Parsed,
