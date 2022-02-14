@@ -7,8 +7,8 @@ import (
 
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 type Builtins struct {
@@ -27,13 +27,13 @@ func LoadBuiltins(ctx context.Context, paths ...string) (Builtins, error) {
 			return Builtins{}, err
 		}
 
-		tree, err := analysis.Parse(ctx, contents)
+		tree, err := query.Parse(ctx, contents)
 		if err != nil {
 			return Builtins{}, fmt.Errorf("failed to parse %q: %v", path, err)
 		}
 
 		doc := document.NewDocument(contents, tree)
-		docFunctions := analysis.Functions(doc, tree.RootNode())
+		docFunctions := query.Functions(doc, tree.RootNode())
 		// symbols := analysis.DocumentSymbols(doc)
 
 		for fn, sig := range docFunctions {

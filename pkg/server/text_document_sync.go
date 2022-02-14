@@ -6,14 +6,14 @@ import (
 
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 func (s *Server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) (err error) {
 	uri := params.TextDocument.URI
 	contents := []byte(params.TextDocument.Text)
-	tree, err := analysis.Parse(ctx, contents)
+	tree, err := query.Parse(ctx, contents)
 	if err != nil {
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
 	}
@@ -30,7 +30,7 @@ func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 
 	uri := params.TextDocument.URI
 	contents := []byte(params.ContentChanges[0].Text)
-	tree, err := analysis.Parse(ctx, contents)
+	tree, err := query.Parse(ctx, contents)
 	if err != nil {
 		s.docs.Remove(uri)
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
@@ -44,7 +44,7 @@ func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 func (s *Server) DidSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) (err error) {
 	uri := params.TextDocument.URI
 	contents := []byte(params.Text)
-	tree, err := analysis.Parse(ctx, contents)
+	tree, err := query.Parse(ctx, contents)
 	if err != nil {
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
 	}

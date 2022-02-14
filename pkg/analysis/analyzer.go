@@ -5,6 +5,7 @@ import (
 	"go.lsp.dev/protocol"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 type Analyzer struct {
@@ -39,7 +40,7 @@ func WithBuiltinSymbols(symbols []protocol.SymbolInformation) AnalyzerOption {
 }
 
 func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
-	node, ok := NodeAtPosition(doc, pos)
+	node, ok := query.NamedNodeAtPosition(doc, pos)
 	if !ok {
 		return nil
 	}
@@ -51,7 +52,7 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 	}
 
 	for n := node; n != nil; n = n.Parent() {
-		sig, ok := Function(doc, n, fnName)
+		sig, ok := query.Function(doc, n, fnName)
 		if ok {
 			// TODO(milas): determine active parameter based on position
 			return &protocol.SignatureHelp{
@@ -89,7 +90,7 @@ func possibleCallFunctionName(doc document.Document, node *sitter.Node) string {
 			// happen if the closing `)` is not (yet) present or if there's
 			// something invalid going on within the params
 			possibleCall := n.NamedChild(0)
-			if possibleCall != nil && possibleCall.Type() == NodeTypeIdentifier {
+			if possibleCall != nil && possibleCall.Type() == query.NodeTypeIdentifier {
 				possibleParen := possibleCall.NextSibling()
 				if possibleParen != nil && possibleParen.Content(doc.Contents) == "(" {
 					return possibleCall.Content(doc.Contents)

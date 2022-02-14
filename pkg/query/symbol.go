@@ -1,28 +1,10 @@
-package analysis
+package query
 
 import (
-	"context"
-
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/python"
 	"go.lsp.dev/protocol"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 )
-
-var lang = python.GetLanguage()
-
-func Parse(ctx context.Context, input []byte) (*sitter.Tree, error) {
-	parser := sitter.NewParser()
-	parser.SetLanguage(lang)
-
-	tree, err := parser.ParseCtx(ctx, nil, input)
-	if err != nil {
-		return nil, err
-	}
-
-	return tree, nil
-}
 
 // DocumentSymbols returns all symbols with document-wide visibility.
 // TODO(milas): this currently only looks for assignment expressions
