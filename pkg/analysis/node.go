@@ -22,8 +22,8 @@ const (
 	FieldBody       = "body"
 )
 
-// NodeAtPosition returns the most granular named descendant at a position.
-func NodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
+// NamedNodeAtPosition returns the most granular named descendant at a position.
+func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
 	pt := PositionToPoint(pos)
 	if doc.Tree == nil {
 		return nil, false

@@ -17,7 +17,7 @@ func TestServer_SignatureHelp(t *testing.T) {
 	src := `
 def foo():
   def foo(a, b: str, c=None, d: int=5) -> List[str]:
-    foo()
+    foo(a,,)
 `
 
 	f.loadDocument("./test.star", src)
@@ -26,13 +26,29 @@ def foo():
 	f.mustEditorCall(protocol.MethodTextDocumentSignatureHelp, protocol.SignatureHelpParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: docURI},
-			Position:     protocol.Position{Line: 3, Character: 4},
+			Position:     protocol.Position{Line: 3, Character: 10},
 		},
 	}, &resp)
 
 	require.Len(t, resp.Signatures, 1)
 	assert.Equal(t, uint32(0), resp.ActiveSignature)
-	assert.Equal(t, "(a, b: str, c=None, d: int=5) -> List[str]", resp.Signatures[0].Label)
+
+	expected := protocol.SignatureHelp{
+		Signatures: []protocol.SignatureInformation{
+			{
+				Label: `(a, b: str, c=None, d: int=5) -> List[str]`,
+				Parameters: []protocol.ParameterInformation{
+					{Label: "a"},
+					{Label: "b: str"},
+					{Label: "c=None"},
+					{Label: "d: int=5"},
+				},
+			},
+		},
+		ActiveParameter: 1,
+		ActiveSignature: 0,
+	}
+	requireJsonEqual(t, expected, resp)
 }
 
 func TestServer_SignatureHelp_ErrorAtCursor(t *testing.T) {
@@ -41,10 +57,10 @@ func TestServer_SignatureHelp_ErrorAtCursor(t *testing.T) {
 	docURI := uri.File("./test.star")
 
 	src := `
-def foo():
+def foo(a, b):
   pass
 
-foo(
+foo(a,
 `
 
 	f.loadDocument("./test.star", src)
@@ -53,13 +69,28 @@ foo(
 	f.mustEditorCall(protocol.MethodTextDocumentSignatureHelp, protocol.SignatureHelpParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: docURI},
-			Position:     protocol.Position{Line: 4, Character: 3},
+			// TODO(milas): change char 3 -> 6 so that this is actually within
+			// 	the invalid "call" and assert that `b` is the active param
+			Position: protocol.Position{Line: 4, Character: 3},
 		},
 	}, &resp)
 
 	require.Len(t, resp.Signatures, 1)
 	assert.Equal(t, uint32(0), resp.ActiveSignature)
-	assert.Equal(t, "() -> None", resp.Signatures[0].Label)
+
+	expected := protocol.SignatureHelp{
+		Signatures: []protocol.SignatureInformation{
+			{
+				Label: `(a, b) -> None`,
+				Parameters: []protocol.ParameterInformation{
+					{Label: "a"},
+					{Label: "b"},
+				},
+			},
+		},
+		ActiveSignature: 0,
+	}
+	requireJsonEqual(t, expected, resp)
 }
 
 func TestServer_SignatureHelp_OutOfScope(t *testing.T) {
