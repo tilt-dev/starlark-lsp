@@ -1,4 +1,4 @@
-package analysis
+package query
 
 import (
 	sitter "github.com/smacker/go-tree-sitter"
@@ -7,20 +7,21 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 )
 
-const (
-	NodeTypeArgList             = "argument_list"
-	NodeTypeFunctionDef         = "function_definition"
-	NodeTypeParameters          = "parameters"
-	NodeTypeIdentifier          = "identifier"
-	NodeTypeExpressionStatement = "expression_statement"
-	NodeTypeString              = "string"
-	NodeTypeBlock               = "block"
+// PositionToPoint converts an LSP protocol file location to a Tree-sitter file location.
+func PositionToPoint(pos protocol.Position) sitter.Point {
+	return sitter.Point{
+		Row:    pos.Line,
+		Column: pos.Character,
+	}
+}
 
-	FieldName       = "name"
-	FieldParameters = "parameters"
-	FieldReturnType = "return_type"
-	FieldBody       = "body"
-)
+// PointToPosition converts a Tree-sitter file location to an LSP protocol file location.
+func PointToPosition(point sitter.Point) protocol.Position {
+	return protocol.Position{
+		Line:      point.Row,
+		Character: point.Column,
+	}
+}
 
 // NamedNodeAtPosition returns the most granular named descendant at a position.
 func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {

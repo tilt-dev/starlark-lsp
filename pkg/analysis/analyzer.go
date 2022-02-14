@@ -5,6 +5,7 @@ import (
 	"go.lsp.dev/protocol"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 type Analyzer struct {
@@ -41,7 +42,7 @@ func WithBuiltinSymbols(symbols []protocol.SymbolInformation) AnalyzerOption {
 func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
 	// TODO(milas): this doesn't work right for ERROR states because we're only
 	// 	looking for named nodes
-	node, ok := NamedNodeAtPosition(doc, pos)
+	node, ok := query.NamedNodeAtPosition(doc, pos)
 	if !ok {
 		return nil
 	}
@@ -55,7 +56,7 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 	var sig protocol.SignatureInformation
 	for n := node; n != nil; n = n.Parent() {
 		var found bool
-		sig, found = Function(doc, n, fnName)
+		sig, found = query.Function(doc, n, fnName)
 		if found {
 			break
 		}
@@ -99,7 +100,7 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 			// happen if the closing `)` is not (yet) present or if there's
 			// something invalid going on within the args, e.g. `foo(x#)`
 			possibleCall := n.NamedChild(0)
-			if possibleCall != nil && possibleCall.Type() == NodeTypeIdentifier {
+			if possibleCall != nil && possibleCall.Type() == query.NodeTypeIdentifier {
 				possibleParen := possibleCall.NextSibling()
 				if possibleParen != nil && !possibleParen.IsNamed() && possibleParen.Content(doc.Contents) == "(" {
 					fnName = possibleCall.Content(doc.Contents)

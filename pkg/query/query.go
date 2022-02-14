@@ -1,12 +1,36 @@
 package query
 
-import _ "embed"
+import (
+	"fmt"
+	"strings"
 
-// FunctionParameters extracts parameters from a function definition and
-// supports a mixture of positional parameters, default value parameters,
-// typed parameters*, and typed default value parameters*.
-//
-// * These are not valid Starlark, but we support them to enable using Python
-//   type-stub files for improved editor experience.
-//go:embed parameters.scm
-var FunctionParameters []byte
+	sitter "github.com/smacker/go-tree-sitter"
+)
+
+func MustQuery(pattern []byte, lang *sitter.Language) *sitter.Query {
+	q, err := sitter.NewQuery(pattern, lang)
+	if err != nil {
+		panic(fmt.Errorf("invalid query pattern\n-----%s\n-----\n", strings.TrimSpace(string(pattern))))
+	}
+	return q
+}
+
+type MatchFunc func(q *sitter.Query, match *sitter.QueryMatch) bool
+
+// Query executes a Tree-sitter S-expression query against a subtree and invokes
+// matchFn on each result.
+func Query(node *sitter.Node, pattern []byte, matchFn MatchFunc) {
+	q := MustQuery(pattern, LanguagePython)
+	qc := sitter.NewQueryCursor()
+	defer qc.Close()
+
+	qc.Exec(q, node)
+	for m, hasMatch := qc.NextMatch(); hasMatch; m, hasMatch = qc.NextMatch() {
+		if m == nil {
+			panic("tree-sitter returned nil match")
+		}
+		if !matchFn(q, m) {
+			return
+		}
+	}
+}

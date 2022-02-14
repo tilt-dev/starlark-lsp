@@ -1,11 +1,12 @@
-package analysis
+package query
 
 import (
 	"fmt"
 	"strings"
 
-	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
+
+	sitter "github.com/smacker/go-tree-sitter"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
