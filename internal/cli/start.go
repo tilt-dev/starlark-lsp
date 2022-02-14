@@ -102,7 +102,7 @@ func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyz
 func initializeConn(conn io.ReadWriteCloser, logger *zap.Logger) (jsonrpc2.Conn, protocol.Client) {
 	stream := jsonrpc2.NewStream(conn)
 	jsonConn := jsonrpc2.NewConn(stream)
-	notifier := protocol.ClientDispatcher(jsonConn, logger.Named("notifier"))
+	notifier := protocol.ClientDispatcher(jsonConn, logger.Named("notify"))
 
 	return jsonConn, notifier
 }

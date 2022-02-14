@@ -78,8 +78,6 @@ func (l LineOffsets) OffsetForPoint(point sitter.Point) uint32 {
 func (l LineOffsets) locationForOffset(offset uint32) (uint32, uint32) {
 	if offset > l.sourceLen {
 		offset = l.sourceLen
-	} else if offset < 0 {
-		offset = 0
 	}
 
 	line := sort.Search(len(l.offsets), func(i int) bool {
@@ -101,10 +99,6 @@ func (l LineOffsets) locationForOffset(offset uint32) (uint32, uint32) {
 }
 
 func (l LineOffsets) offsetForLocation(line uint32, col uint32) uint32 {
-	if line < 0 {
-		return 0
-	}
-
 	if line >= uint32(len(l.offsets)) {
 		return l.sourceLen
 	}
