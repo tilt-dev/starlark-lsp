@@ -41,7 +41,7 @@ func Function(doc document.Document, node *sitter.Node, fnName string) (protocol
 		if n.Type() != NodeTypeFunctionDef {
 			continue
 		}
-		curFuncName := n.ChildByFieldName(FieldName).Content(doc.Contents)
+		curFuncName := doc.Content(n.ChildByFieldName(FieldName))
 		if curFuncName == fnName {
 			_, sig := extractSignatureInformation(doc, n)
 			return sig, true
@@ -55,7 +55,7 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}
 
-	fnName := n.ChildByFieldName(FieldName).Content(doc.Contents)
+	fnName := doc.Content(n.ChildByFieldName(FieldName))
 	fnDocs := extractDocstring(doc, n.ChildByFieldName(FieldBody))
 
 	// params might be empty but a node for `()` will still exist
@@ -63,7 +63,7 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 	// unlike name + params, returnType is optional
 	var returnType string
 	if rtNode := n.ChildByFieldName(FieldReturnType); rtNode != nil {
-		returnType = rtNode.Content(doc.Contents)
+		returnType = doc.Content(rtNode)
 	}
 
 	sig := protocol.SignatureInformation{
@@ -112,7 +112,7 @@ func extractDocstring(doc document.Document, n *sitter.Node) docstring.Parsed {
 			// TODO(milas): need to do nested quote un-escaping (generally
 			// 	docstrings use triple-quoted strings so this isn't a huge
 			// 	issue at least)
-			rawDocString := docStringNode.Content(doc.Contents)
+			rawDocString := doc.Content(docStringNode)
 			// this is the raw source, so it will be wrapped with with """ / ''' / " / '
 			// (technically this could trim off too much but not worth the
 			// headache to deal with valid leading/trailing quotes)

@@ -22,10 +22,7 @@ func TestServer_DidOpen(t *testing.T) {
 		},
 	}, &resp)
 
-	doc, err := f.docManager.Read(uri.File("./test.star"))
-	require.NoError(t, err, "Failed to read file from doc manager")
-	require.Equal(t, fileData, string(doc.Contents), "File contents did not match")
-	require.NotNil(t, doc.Tree, "Tree-sitter tree was nil")
+	f.requireDocContents("./test.star", fileData)
 }
 
 func TestServer_DidChange(t *testing.T) {
@@ -46,10 +43,7 @@ func TestServer_DidChange(t *testing.T) {
 		},
 	}, &resp)
 
-	doc, err := f.docManager.Read(uri.File("./test.star"))
-	require.NoError(t, err, "Failed to read file from doc manager")
-	require.Equal(t, fileData, string(doc.Contents), "File contents did not match")
-	require.NotNil(t, doc.Tree, "Tree-sitter tree was nil")
+	f.requireDocContents("./test.star", fileData)
 }
 
 func TestServer_DidSave(t *testing.T) {
@@ -65,10 +59,7 @@ func TestServer_DidSave(t *testing.T) {
 		Text: fileData,
 	}, &resp)
 
-	doc, err := f.docManager.Read(uri.File("./test.star"))
-	require.NoError(t, err, "Failed to read file from doc manager")
-	require.Equal(t, fileData, string(doc.Contents), "File contents did not match")
-	require.NotNil(t, doc.Tree, "Tree-sitter tree was nil")
+	f.requireDocContents("./test.star", fileData)
 }
 
 func TestServer_DidClose(t *testing.T) {
@@ -76,24 +67,14 @@ func TestServer_DidClose(t *testing.T) {
 
 	const fileData = "foo + 1 = &^ 3"
 
+	f.mustWriteDocument("./test.star", fileData)
+
 	var resp jsonrpc2.Response
-	f.mustEditorCall(protocol.MethodTextDocumentDidOpen, protocol.DidOpenTextDocumentParams{
-		TextDocument: protocol.TextDocumentItem{
-			URI:  uri.File("./test.star"),
-			Text: fileData,
-		},
-	}, &resp)
-
-	doc, err := f.docManager.Read(uri.File("./test.star"))
-	require.NoError(t, err, "Failed to read file from doc manager")
-	require.Equal(t, fileData, string(doc.Contents), "File contents did not match")
-	require.NotNil(t, doc.Tree, "Tree-sitter tree was nil")
-
 	f.mustEditorCall(protocol.MethodTextDocumentDidClose, protocol.DidCloseTextDocumentParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri.File("./test.star")},
 	}, &resp)
 
-	doc, err = f.docManager.Read(uri.File("./test.star"))
+	doc, err := f.docManager.Read(uri.File("./test.star"))
 	require.EqualError(t, err, "file does not exist", "Document should no longer exist")
 	require.Zero(t, doc, "Document was not zero-value")
 }

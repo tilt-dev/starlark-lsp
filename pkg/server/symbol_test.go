@@ -18,7 +18,7 @@ y = None
 z = True
 `
 
-	f.loadDocument("./test.star", doc)
+	f.mustWriteDocument("./test.star", doc)
 
 	var resp []protocol.DocumentSymbol
 	f.mustEditorCall(protocol.MethodTextDocumentDocumentSymbol, protocol.DocumentSymbolParams{
