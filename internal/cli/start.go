@@ -51,15 +51,21 @@ starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
 	}
 
 	cmd.Command.RunE = func(cc *cobra.Command, args []string) error {
+		var err error
 		ctx := cc.Context()
 		analyzer, err := createAnalyzer(ctx, cmd.builtinDefPaths)
 		if err != nil {
 			return fmt.Errorf("failed to create analyzer: %v", err)
 		}
 		if cmd.address != "" {
-			return runSocketServer(ctx, cmd.address, analyzer)
+			err = runSocketServer(ctx, cmd.address, analyzer)
+		} else {
+			err = runStdioServer(ctx, analyzer)
 		}
-		return runStdioServer(ctx, analyzer)
+		if err == context.Canceled {
+			err = nil
+		}
+		return err
 	}
 
 	cmd.Flags().StringVar(&cmd.address, "address", "",
@@ -71,6 +77,7 @@ starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
 }
 
 func runStdioServer(ctx context.Context, analyzer *analysis.Analyzer) error {
+	ctx, cancel := context.WithCancel(ctx)
 	logger := protocol.LoggerFromContext(ctx)
 	logger.Debug("running in stdio mode")
 	stdio := struct {
@@ -80,9 +87,11 @@ func runStdioServer(ctx context.Context, analyzer *analysis.Analyzer) error {
 		os.Stdin,
 		os.Stdout,
 	}
-	conn := launchHandler(ctx, stdio, analyzer)
+
+	conn := launchHandler(ctx, cancel, stdio, analyzer)
 	select {
 	case <-ctx.Done():
+		return ctx.Err()
 	case <-conn.Done():
 		if ctx.Err() == nil {
 			// only propagate connection error if context is still valid
@@ -93,9 +102,11 @@ func runStdioServer(ctx context.Context, analyzer *analysis.Analyzer) error {
 }
 
 func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyzer) error {
+	ctx, cancel := context.WithCancel(ctx)
 	var lc net.ListenConfig
 	listener, err := lc.Listen(ctx, "tcp4", addr)
 	if err != nil {
+		cancel()
 		return err
 	}
 	defer func() {
@@ -111,13 +122,25 @@ func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyz
 		conn, err := listener.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
+				cancel()
 				return nil
 			}
 			logger.Warn("failed to accept connection", zap.Error(err))
 		}
 		logger.Debug("accepted connection",
 			zap.String("remote_addr", conn.RemoteAddr().String()))
-		launchHandler(ctx, conn, analyzer)
+		jsonConn := launchHandler(ctx, cancel, conn, analyzer)
+
+		select {
+		case <-ctx.Done():
+			_ = jsonConn.Close()
+			return ctx.Err()
+		case <-jsonConn.Done():
+			if ctx.Err() == nil {
+				// only propagate connection error if context is still valid
+				return jsonConn.Err()
+			}
+		}
 	}
 }
 
@@ -129,17 +152,17 @@ func initializeConn(conn io.ReadWriteCloser, logger *zap.Logger) (jsonrpc2.Conn,
 	return jsonConn, notifier
 }
 
-func createHandler(notifier protocol.Client, analyzer *analysis.Analyzer) jsonrpc2.Handler {
+func createHandler(cancel context.CancelFunc, notifier protocol.Client, analyzer *analysis.Analyzer) jsonrpc2.Handler {
 	docManager := document.NewDocumentManager()
-	s := server.NewServer(notifier, docManager, analyzer)
+	s := server.NewServer(cancel, notifier, docManager, analyzer)
 	h := s.Handler(server.StandardMiddleware...)
 	return h
 }
 
-func launchHandler(ctx context.Context, conn io.ReadWriteCloser, analyzer *analysis.Analyzer) jsonrpc2.Conn {
+func launchHandler(ctx context.Context, cancel context.CancelFunc, conn io.ReadWriteCloser, analyzer *analysis.Analyzer) jsonrpc2.Conn {
 	logger := protocol.LoggerFromContext(ctx)
 	jsonConn, notifier := initializeConn(conn, logger)
-	h := createHandler(notifier, analyzer)
+	h := createHandler(cancel, notifier, analyzer)
 	jsonConn.Go(ctx, h)
 	return jsonConn
 }
