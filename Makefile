@@ -1,3 +1,5 @@
+.PHONY: test lint tidy fmt install
+
 test:
 ifneq ($(CIRCLECI),true)
 		go test -timeout 30s -v ./...
@@ -19,3 +21,6 @@ tidy:
 
 fmt:
 	goimports -w -l -local github.com/tilt-dev/starlark-lsp pkg/ cmd/ internal/
+
+install:
+	go install ./cmd/starlark-lsp

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+
 	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/protocol"
 
@@ -15,6 +17,7 @@ type Server struct {
 	// implementations
 	FallbackServer
 
+	cancel context.CancelFunc
 	// notifier can send broadcasts to the editor (e.g. diagnostics)
 	notifier protocol.Client
 	// docs tracks open files for the editor including their contents and parse tree
@@ -23,8 +26,9 @@ type Server struct {
 	analyzer *analysis.Analyzer
 }
 
-func NewServer(notifier protocol.Client, docManager *document.Manager, analyzer *analysis.Analyzer) *Server {
+func NewServer(cancel context.CancelFunc, notifier protocol.Client, docManager *document.Manager, analyzer *analysis.Analyzer) *Server {
 	return &Server{
+		cancel:   cancel,
 		notifier: notifier,
 		docs:     docManager,
 		analyzer: analyzer,
@@ -34,4 +38,13 @@ func NewServer(notifier protocol.Client, docManager *document.Manager, analyzer 
 func (s *Server) Handler(middlewares ...middleware.Middleware) jsonrpc2.Handler {
 	serverHandler := protocol.ServerHandler(s, jsonrpc2.MethodNotFoundHandler)
 	return middleware.WrapHandler(serverHandler, middlewares...)
+}
+
+func (s *Server) Shutdown(ctx context.Context) (err error) {
+	return nil
+}
+
+func (s *Server) Exit(ctx context.Context) (err error) {
+	s.cancel()
+	return nil
 }
