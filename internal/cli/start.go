@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -137,8 +138,10 @@ func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyz
 			return ctx.Err()
 		case <-jsonConn.Done():
 			if ctx.Err() == nil {
-				// only propagate connection error if context is still valid
-				return jsonConn.Err()
+				if errors.Unwrap(jsonConn.Err()) != io.EOF {
+					// only propagate connection error if context is still valid
+					return jsonConn.Err()
+				}
 			}
 		}
 	}
