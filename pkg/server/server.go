@@ -41,6 +41,10 @@ func (s *Server) Handler(middlewares ...middleware.Middleware) jsonrpc2.Handler 
 }
 
 func (s *Server) Shutdown(ctx context.Context) (err error) {
+	return nil
+}
+
+func (s *Server) Exit(ctx context.Context) (err error) {
 	s.cancel()
 	return nil
 }
