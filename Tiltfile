@@ -14,7 +14,7 @@ if os.path.exists('../tilt.build'):
     # builtins.extend(listdir('../tilt.build/api/modules', recursive=True))
 
 def lsp_args():
-    args = ['--address=127.0.0.1:8765']
+    args = ['--address=127.0.0.1:8760']
     args.extend(['--builtin-paths='+b for b in builtins])
     return ' '.join(args)
 
