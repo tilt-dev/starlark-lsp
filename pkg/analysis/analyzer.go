@@ -1,42 +1,51 @@
 package analysis
 
 import (
+	"context"
+
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
+	"go.uber.org/zap"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 type Analyzer struct {
-	builtinFunctions map[string]protocol.SignatureInformation
-	builtinSymbols   []protocol.SymbolInformation
+	builtins *Builtins
+	context  context.Context
+	logger   *zap.Logger
 }
 
-type AnalyzerOption func(*Analyzer)
+type AnalyzerOption func(*Analyzer) error
 
-func NewAnalyzer(opts ...AnalyzerOption) *Analyzer {
+func NewAnalyzer(ctx context.Context, opts ...AnalyzerOption) (*Analyzer, error) {
 	analyzer := Analyzer{
-		builtinFunctions: make(map[string]protocol.SignatureInformation),
+		context: ctx,
+		builtins: &Builtins{
+			Functions: make(map[string]protocol.SignatureInformation),
+			Symbols:   []protocol.SymbolInformation{},
+		},
 	}
-	for _, opt := range opts {
-		opt(&analyzer)
-	}
-	return &analyzer
-}
+	logger := protocol.LoggerFromContext(ctx)
+	logger = logger.Named("analyzer")
+	analyzer.logger = logger
 
-func WithBuiltinFunctions(sigs map[string]protocol.SignatureInformation) AnalyzerOption {
-	return func(analyzer *Analyzer) {
-		for fn, sig := range sigs {
-			analyzer.builtinFunctions[fn] = sig
+	for _, opt := range opts {
+		err := opt(&analyzer)
+		if err != nil {
+			return &analyzer, err
 		}
 	}
-}
 
-func WithBuiltinSymbols(symbols []protocol.SymbolInformation) AnalyzerOption {
-	return func(analyzer *Analyzer) {
-		analyzer.builtinSymbols = append(analyzer.builtinSymbols, symbols...)
+	if len(analyzer.builtins.Functions) != 0 {
+		logger.Debug("registered built-in functions", zap.Int("count", len(analyzer.builtins.Functions)))
 	}
+	if len(analyzer.builtins.Symbols) != 0 {
+		logger.Debug("registered built-in symbols", zap.Int("count", len(analyzer.builtins.Symbols)))
+	}
+
+	return &analyzer, nil
 }
 
 func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
@@ -63,7 +72,7 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 	}
 
 	if sig.Label == "" {
-		sig = a.builtinFunctions[fnName]
+		sig = a.builtins.Functions[fnName]
 	}
 
 	if sig.Label == "" {

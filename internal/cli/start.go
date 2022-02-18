@@ -22,6 +22,7 @@ type startCmd struct {
 	*cobra.Command
 	address         string
 	builtinDefPaths []string
+	builtinModPaths []string
 }
 
 func newStartCmd() *startCmd {
@@ -54,7 +55,7 @@ starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
 	cmd.Command.RunE = func(cc *cobra.Command, args []string) error {
 		var err error
 		ctx := cc.Context()
-		analyzer, err := createAnalyzer(ctx, cmd.builtinDefPaths)
+		analyzer, err := createAnalyzer(ctx, cmd.builtinDefPaths, cmd.builtinModPaths)
 		if err != nil {
 			return fmt.Errorf("failed to create analyzer: %v", err)
 		}
@@ -73,6 +74,8 @@ starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
 		"Address (hostname:port) to listen on")
 	cmd.Flags().StringArrayVar(&cmd.builtinDefPaths, "builtin-paths", nil,
 		"Paths to files to parse and treat as additional language builtins")
+	cmd.Flags().StringArrayVar(&cmd.builtinModPaths, "builtin-modules", nil,
+		"Paths to directories to parse and treat as additional language modules")
 
 	return &cmd
 }
@@ -89,17 +92,7 @@ func runStdioServer(ctx context.Context, analyzer *analysis.Analyzer) error {
 		os.Stdout,
 	}
 
-	conn := launchHandler(ctx, cancel, stdio, analyzer)
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-conn.Done():
-		if ctx.Err() == nil {
-			// only propagate connection error if context is still valid
-			return conn.Err()
-		}
-	}
-	return nil
+	return launchHandler(ctx, cancel, stdio, analyzer)
 }
 
 func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyzer) error {
@@ -130,19 +123,11 @@ func runSocketServer(ctx context.Context, addr string, analyzer *analysis.Analyz
 		}
 		logger.Debug("accepted connection",
 			zap.String("remote_addr", conn.RemoteAddr().String()))
-		jsonConn := launchHandler(ctx, cancel, conn, analyzer)
 
-		select {
-		case <-ctx.Done():
-			_ = jsonConn.Close()
-			return ctx.Err()
-		case <-jsonConn.Done():
-			if ctx.Err() == nil {
-				if errors.Unwrap(jsonConn.Err()) != io.EOF {
-					// only propagate connection error if context is still valid
-					return jsonConn.Err()
-				}
-			}
+		err = launchHandler(ctx, cancel, conn, analyzer)
+		if err != nil {
+			cancel()
+			return err
 		}
 	}
 }
@@ -162,34 +147,38 @@ func createHandler(cancel context.CancelFunc, notifier protocol.Client, analyzer
 	return h
 }
 
-func launchHandler(ctx context.Context, cancel context.CancelFunc, conn io.ReadWriteCloser, analyzer *analysis.Analyzer) jsonrpc2.Conn {
+func launchHandler(ctx context.Context, cancel context.CancelFunc, conn io.ReadWriteCloser, analyzer *analysis.Analyzer) error {
 	logger := protocol.LoggerFromContext(ctx)
 	jsonConn, notifier := initializeConn(conn, logger)
 	h := createHandler(cancel, notifier, analyzer)
 	jsonConn.Go(ctx, h)
-	return jsonConn
+
+	select {
+	case <-ctx.Done():
+		_ = jsonConn.Close()
+		return ctx.Err()
+	case <-jsonConn.Done():
+		if ctx.Err() == nil {
+			if errors.Unwrap(jsonConn.Err()) != io.EOF {
+				// only propagate connection error if context is still valid
+				return jsonConn.Err()
+			}
+		}
+	}
+
+	return nil
 }
 
-func createAnalyzer(ctx context.Context, builtinDefPaths []string) (*analysis.Analyzer, error) {
-	var opts []analysis.AnalyzerOption
+func createAnalyzer(ctx context.Context, builtinDefPaths []string, builtinModPaths []string) (*analysis.Analyzer, error) {
+	opts := []analysis.AnalyzerOption{}
 
-	builtins, err := LoadBuiltins(ctx, builtinDefPaths...)
-	if err != nil {
-		return nil, err
+	if len(builtinDefPaths) > 0 {
+		opts = append(opts, analysis.WithBuiltinPaths(builtinDefPaths))
 	}
 
-	logger := protocol.LoggerFromContext(ctx)
-	if len(builtins.Functions) != 0 {
-		logger.Debug("registered built-in functions",
-			zap.Int("count", len(builtins.Functions)))
-		opts = append(opts, analysis.WithBuiltinFunctions(builtins.Functions))
+	if len(builtinModPaths) > 0 {
+		opts = append(opts, analysis.WithBuiltinModulePaths(builtinModPaths))
 	}
 
-	if len(builtins.Symbols) != 0 {
-		logger.Debug("registered built-in symbols",
-			zap.Int("count", len(builtins.Symbols)))
-		opts = append(opts, analysis.WithBuiltinSymbols(builtins.Symbols))
-	}
-
-	return analysis.NewAnalyzer(opts...), nil
+	return analysis.NewAnalyzer(ctx, opts...)
 }

@@ -54,7 +54,7 @@ func newFixture(t testing.TB) *fixture {
 	notifier := protocol.ClientDispatcher(serverJsonConn, logger.Named("notify"))
 
 	docManager := newDocumentManager(t)
-	analyzer := analysis.NewAnalyzer()
+	analyzer, _ := analysis.NewAnalyzer(ctx)
 	s := server.NewServer(cancel, notifier, docManager, analyzer)
 
 	// TODO(milas): AsyncHandler does not stop if the server is shut down which
