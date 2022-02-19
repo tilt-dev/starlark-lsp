@@ -24,7 +24,7 @@ func NewAnalyzer(ctx context.Context, opts ...AnalyzerOption) (*Analyzer, error)
 		context: ctx,
 		builtins: &Builtins{
 			Functions: make(map[string]protocol.SignatureInformation),
-			Symbols:   []protocol.SymbolInformation{},
+			Symbols:   []protocol.DocumentSymbol{},
 		},
 	}
 	logger := protocol.LoggerFromContext(ctx)

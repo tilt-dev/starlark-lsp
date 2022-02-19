@@ -13,7 +13,7 @@ import (
 
 type Builtins struct {
 	Functions map[string]protocol.SignatureInformation
-	Symbols   []protocol.SymbolInformation
+	Symbols   []protocol.DocumentSymbol
 }
 
 func (b *Builtins) Update(other *Builtins) {
@@ -25,6 +25,24 @@ func (b *Builtins) Update(other *Builtins) {
 	if len(other.Symbols) > 0 {
 		b.Symbols = append(b.Symbols, other.Symbols...)
 	}
+}
+
+func (b *Builtins) FunctionNames() []string {
+	names := make([]string, len(b.Functions))
+	i := 0
+	for name := range b.Functions {
+		names[i] = name
+		i++
+	}
+	return names
+}
+
+func (b *Builtins) SymbolNames() []string {
+	names := make([]string, len(b.Symbols))
+	for i, sym := range b.Symbols {
+		names[i] = sym.Name
+	}
+	return names
 }
 
 func WithBuiltinPaths(paths []string) AnalyzerOption {
@@ -56,7 +74,7 @@ func WithBuiltinFunctions(sigs map[string]protocol.SignatureInformation) Analyze
 	}
 }
 
-func WithBuiltinSymbols(symbols []protocol.SymbolInformation) AnalyzerOption {
+func WithBuiltinSymbols(symbols []protocol.DocumentSymbol) AnalyzerOption {
 	return func(analyzer *Analyzer) error {
 		analyzer.builtins.Update(&Builtins{Symbols: symbols})
 		return nil
@@ -75,10 +93,9 @@ func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
 	}
 
 	functions := make(map[string]protocol.SignatureInformation)
-	symbols := []protocol.SymbolInformation{}
 	doc := document.NewDocument(contents, tree)
 	docFunctions := query.Functions(doc, tree.RootNode())
-	// symbols := analysis.DocumentSymbols(doc)
+	symbols := query.DocumentSymbols(doc)
 	doc.Close()
 
 	for fn, sig := range docFunctions {
@@ -95,24 +112,24 @@ func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
 }
 
 func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
-	functions := make(map[string]protocol.SignatureInformation)
-	symbols := []protocol.SymbolInformation{}
+	builtins := &Builtins{
+		Functions: make(map[string]protocol.SignatureInformation),
+		Symbols:   []protocol.DocumentSymbol{},
+	}
 
 	for _, path := range filePaths {
 		fileBuiltins, err := LoadBuiltinsFromFile(ctx, path)
 		if err != nil {
 			return &Builtins{}, err
 		}
-		for name, sig := range fileBuiltins.Functions {
-			functions[name] = sig
-		}
-		symbols = append(symbols, fileBuiltins.Symbols...)
+		builtins.Update(fileBuiltins)
 	}
 
-	return &Builtins{
-		Functions: functions,
-		Symbols:   symbols,
-	}, nil
+	return builtins, nil
+}
+
+func LoadBuiltinModule(ctx context.Context, name, dir string) (*Builtins, error) {
+	return &Builtins{}, nil
 }
 
 func LoadBuiltinModules(ctx context.Context, moduleDirs []string) (*Builtins, error) {

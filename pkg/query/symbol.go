@@ -8,10 +8,10 @@ import (
 
 // DocumentSymbols returns all symbols with document-wide visibility.
 // TODO(milas): this currently only looks for assignment expressions
-func DocumentSymbols(doc document.Document) []protocol.SymbolInformation {
-	var symbols []protocol.SymbolInformation
+func DocumentSymbols(doc document.Document) []protocol.DocumentSymbol {
+	var symbols []protocol.DocumentSymbol
 	for n := doc.Tree().RootNode().NamedChild(0); n != nil; n = n.NextNamedSibling() {
-		var symbol protocol.SymbolInformation
+		var symbol protocol.DocumentSymbol
 
 		if n.Type() == "expression_statement" {
 			assignment := n.NamedChild(0)
@@ -24,7 +24,7 @@ func DocumentSymbols(doc document.Document) []protocol.SymbolInformation {
 				kind = protocol.SymbolKindVariable
 			}
 			symbol.Kind = kind
-			symbol.Location.Range = protocol.Range{
+			symbol.Range = protocol.Range{
 				Start: PointToPosition(n.StartPoint()),
 				End:   PointToPosition(n.EndPoint()),
 			}
