@@ -87,6 +87,10 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 	}
 }
 
+func (a *Analyzer) BuiltinSymbols() []protocol.DocumentSymbol {
+	return a.builtins.Symbols
+}
+
 // possibleCallInfo attempts to find the name of the function for a
 // `call`.
 //

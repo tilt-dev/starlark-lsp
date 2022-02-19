@@ -17,6 +17,8 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const envGetcwd = "environ = {}\ndef getcwd():\n  pass\n"
+
 func TestLoadBuiltinsFromFile(t *testing.T) {
 	fixture := newFixture(t)
 	tests := []builtinTest{
@@ -33,7 +35,7 @@ func TestLoadBuiltinsFromFile(t *testing.T) {
 func TestLoadBuiltinModule(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
-	fixture.File("api/os.py", "environ = {}\ndef getcwd():\n  pass\n")
+	fixture.File("api/os.py", envGetcwd)
 	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
 	require.NoError(t, err)
 
@@ -53,12 +55,33 @@ func TestLoadBuiltinModule(t *testing.T) {
 func TestLoadBuiltinModuleInit(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
-	fixture.File("api/__init__.py", "environ = {}\ndef getcwd():\n  pass\n")
+	fixture.File("api/__init__.py", envGetcwd)
 	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"getcwd"}, builtins.FunctionNames())
 	assertContainsAll(t, []string{"environ", "getcwd"}, builtins.SymbolNames())
+}
+
+func TestLoadBuiltinModuleDirectory(t *testing.T) {
+	fixture := newFixture(t)
+	dir := fixture.Dir("api")
+	fixture.Dir("api/os")
+	fixture.File("api/os/__init__.py", envGetcwd)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
+	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	osSym := builtins.Symbols[0]
+	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
+	assert.Equal(t, 2, len(osSym.Children))
+	environSym := osSym.Children[0]
+	assert.Equal(t, "environ", environSym.Name)
+	assert.Equal(t, protocol.SymbolKindField, environSym.Kind)
+	getcwdSym := osSym.Children[1]
+	assert.Equal(t, "getcwd", getcwdSym.Name)
+	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 }
 
 type fixture struct {

@@ -143,7 +143,8 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 
 	for _, entry := range entries {
 		entryName := entry.Name()
-		if !strings.HasSuffix(entryName, ".py") {
+
+		if !entry.IsDir() && !strings.HasSuffix(entryName, ".py") {
 			continue
 		}
 
@@ -156,16 +157,30 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 			continue
 		}
 
-		modName := entryName[:len(entryName)-3]
+		var modName string
+		if entry.IsDir() {
+			modName = entryName
+		} else {
+			modName = entryName[:len(entryName)-3]
+		}
+
 		modSym := protocol.DocumentSymbol{
 			Name:     modName,
 			Kind:     protocol.SymbolKindVariable,
 			Children: []protocol.DocumentSymbol{},
 		}
-		modBuiltins, err := LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
+
+		var modBuiltins *Builtins
+		if entry.IsDir() {
+			modBuiltins, err = LoadBuiltinModule(ctx, filepath.Join(dir, entryName))
+		} else {
+			modBuiltins, err = LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
+		}
+
 		if err != nil {
 			return nil, err
 		}
+
 		for name, fn := range modBuiltins.Functions {
 			builtins.Functions[modName+"."+name] = fn
 		}
@@ -191,5 +206,13 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 }
 
 func LoadBuiltinModules(ctx context.Context, moduleDirs []string) (*Builtins, error) {
-	return &Builtins{}, nil
+	builtins := NewBuiltins()
+	for _, dir := range moduleDirs {
+		modBuiltins, err := LoadBuiltinModule(ctx, dir)
+		if err != nil {
+			return nil, err
+		}
+		builtins.Update(modBuiltins)
+	}
+	return builtins, nil
 }
