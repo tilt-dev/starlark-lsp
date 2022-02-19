@@ -21,8 +21,9 @@ func TestLoadBuiltinsFromFile(t *testing.T) {
 	fixture := newFixture(t)
 	tests := []builtinTest{
 		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo", "bar"}},
+		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeSymbols, expectedSymbols: []string{"foo", "bar"}},
 		{code: "def foo():\n  def bar():\n    pass\n  pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo"}},
-		{code: "foo = 1\n\ndef bar():\n  pass\n", ttype: testTypeSymbols, expectedSymbols: []string{"foo"}},
+		{code: "foo = 1\n\ndef bar():\n  pass\n", ttype: testTypeSymbols, expectedSymbols: []string{"foo", "bar"}},
 	}
 	for i, test := range tests {
 		test.Run(fixture, strings.Join(test.expectedSymbols, "-")+"-"+strconv.Itoa(i))
@@ -41,12 +42,12 @@ func TestLoadBuiltinModule(t *testing.T) {
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
 	assert.Equal(t, 2, len(osSym.Children))
-	getcwdSym := osSym.Children[0]
-	assert.Equal(t, "getcwd", getcwdSym.Name)
-	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
-	environSym := osSym.Children[1]
+	environSym := osSym.Children[0]
 	assert.Equal(t, "environ", environSym.Name)
 	assert.Equal(t, protocol.SymbolKindField, environSym.Kind)
+	getcwdSym := osSym.Children[1]
+	assert.Equal(t, "getcwd", getcwdSym.Name)
+	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 }
 
 func TestLoadBuiltinModuleInit(t *testing.T) {
@@ -57,7 +58,7 @@ func TestLoadBuiltinModuleInit(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"getcwd"}, builtins.FunctionNames())
-	assert.Equal(t, []string{"environ"}, builtins.SymbolNames())
+	assertContainsAll(t, []string{"environ", "getcwd"}, builtins.SymbolNames())
 }
 
 type fixture struct {

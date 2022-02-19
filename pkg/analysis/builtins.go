@@ -168,15 +168,19 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 		}
 		for name, fn := range modBuiltins.Functions {
 			builtins.Functions[modName+"."+name] = fn
-			modSym.Children = append(modSym.Children, protocol.DocumentSymbol{
-				Name: name,
-				Kind: protocol.SymbolKindMethod,
-			})
 		}
 		for _, sym := range modBuiltins.Symbols {
+			var kind protocol.SymbolKind
+			switch sym.Kind {
+			case protocol.SymbolKindFunction:
+				kind = protocol.SymbolKindMethod
+			default:
+				kind = protocol.SymbolKindField
+			}
 			modSym.Children = append(modSym.Children, protocol.DocumentSymbol{
-				Name: sym.Name,
-				Kind: protocol.SymbolKindField,
+				Name:   sym.Name,
+				Kind:   kind,
+				Detail: sym.Detail,
 			})
 		}
 		if len(modSym.Children) > 0 {

@@ -13,7 +13,7 @@ func DocumentSymbols(doc document.Document) []protocol.DocumentSymbol {
 	for n := doc.Tree().RootNode().NamedChild(0); n != nil; n = n.NextNamedSibling() {
 		var symbol protocol.DocumentSymbol
 
-		if n.Type() == "expression_statement" {
+		if n.Type() == NodeTypeExpressionStatement {
 			assignment := n.NamedChild(0)
 			if assignment == nil || assignment.Type() != "assignment" {
 				continue
@@ -24,6 +24,17 @@ func DocumentSymbols(doc document.Document) []protocol.DocumentSymbol {
 				kind = protocol.SymbolKindVariable
 			}
 			symbol.Kind = kind
+			symbol.Range = protocol.Range{
+				Start: PointToPosition(n.StartPoint()),
+				End:   PointToPosition(n.EndPoint()),
+			}
+		}
+
+		if n.Type() == NodeTypeFunctionDef {
+			name, sigInfo := extractSignatureInformation(doc, n)
+			symbol.Name = name
+			symbol.Kind = protocol.SymbolKindFunction
+			symbol.Detail = sigInfo.Label
 			symbol.Range = protocol.Range{
 				Start: PointToPosition(n.StartPoint()),
 				End:   PointToPosition(n.EndPoint()),
