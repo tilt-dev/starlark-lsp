@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"go.lsp.dev/protocol"
 
@@ -14,6 +16,13 @@ import (
 type Builtins struct {
 	Functions map[string]protocol.SignatureInformation
 	Symbols   []protocol.DocumentSymbol
+}
+
+func NewBuiltins() *Builtins {
+	return &Builtins{
+		Functions: make(map[string]protocol.SignatureInformation),
+		Symbols:   []protocol.DocumentSymbol{},
+	}
 }
 
 func (b *Builtins) Update(other *Builtins) {
@@ -112,10 +121,7 @@ func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
 }
 
 func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
-	builtins := &Builtins{
-		Functions: make(map[string]protocol.SignatureInformation),
-		Symbols:   []protocol.DocumentSymbol{},
-	}
+	builtins := NewBuiltins()
 
 	for _, path := range filePaths {
 		fileBuiltins, err := LoadBuiltinsFromFile(ctx, path)
@@ -128,8 +134,56 @@ func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
 	return builtins, nil
 }
 
-func LoadBuiltinModule(ctx context.Context, name, dir string) (*Builtins, error) {
-	return &Builtins{}, nil
+func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
+	builtins := NewBuiltins()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		entryName := entry.Name()
+		if !strings.HasSuffix(entryName, ".py") {
+			continue
+		}
+
+		if entryName == "__init__.py" {
+			initBuiltins, err := LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
+			if err != nil {
+				return nil, err
+			}
+			builtins.Update(initBuiltins)
+			continue
+		}
+
+		modName := entryName[:len(entryName)-3]
+		modSym := protocol.DocumentSymbol{
+			Name:     modName,
+			Kind:     protocol.SymbolKindVariable,
+			Children: []protocol.DocumentSymbol{},
+		}
+		modBuiltins, err := LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
+		if err != nil {
+			return nil, err
+		}
+		for name, fn := range modBuiltins.Functions {
+			builtins.Functions[modName+"."+name] = fn
+			modSym.Children = append(modSym.Children, protocol.DocumentSymbol{
+				Name: name,
+				Kind: protocol.SymbolKindMethod,
+			})
+		}
+		for _, sym := range modBuiltins.Symbols {
+			modSym.Children = append(modSym.Children, protocol.DocumentSymbol{
+				Name: sym.Name,
+				Kind: protocol.SymbolKindField,
+			})
+		}
+		if len(modSym.Children) > 0 {
+			builtins.Symbols = append(builtins.Symbols, modSym)
+		}
+	}
+	return builtins, nil
 }
 
 func LoadBuiltinModules(ctx context.Context, moduleDirs []string) (*Builtins, error) {

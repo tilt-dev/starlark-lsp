@@ -21,11 +21,8 @@ type AnalyzerOption func(*Analyzer) error
 
 func NewAnalyzer(ctx context.Context, opts ...AnalyzerOption) (*Analyzer, error) {
 	analyzer := Analyzer{
-		context: ctx,
-		builtins: &Builtins{
-			Functions: make(map[string]protocol.SignatureInformation),
-			Symbols:   []protocol.DocumentSymbol{},
-		},
+		context:  ctx,
+		builtins: NewBuiltins(),
 	}
 	logger := protocol.LoggerFromContext(ctx)
 	logger = logger.Named("analyzer")

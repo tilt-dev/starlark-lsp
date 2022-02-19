@@ -20,13 +20,44 @@ import (
 func TestLoadBuiltinsFromFile(t *testing.T) {
 	fixture := newFixture(t)
 	tests := []builtinTest{
-		{code: "def foo():\n    pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo"}},
+		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo", "bar"}},
 		{code: "def foo():\n  def bar():\n    pass\n  pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo"}},
-		{code: "foo = 1", ttype: testTypeSymbols, expectedSymbols: []string{"foo"}},
+		{code: "foo = 1\n\ndef bar():\n  pass\n", ttype: testTypeSymbols, expectedSymbols: []string{"foo"}},
 	}
 	for i, test := range tests {
 		test.Run(fixture, strings.Join(test.expectedSymbols, "-")+"-"+strconv.Itoa(i))
 	}
+}
+
+func TestLoadBuiltinModule(t *testing.T) {
+	fixture := newFixture(t)
+	dir := fixture.Dir("api")
+	fixture.File("api/os.py", "environ = {}\ndef getcwd():\n  pass\n")
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
+	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	osSym := builtins.Symbols[0]
+	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
+	assert.Equal(t, 2, len(osSym.Children))
+	getcwdSym := osSym.Children[0]
+	assert.Equal(t, "getcwd", getcwdSym.Name)
+	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
+	environSym := osSym.Children[1]
+	assert.Equal(t, "environ", environSym.Name)
+	assert.Equal(t, protocol.SymbolKindField, environSym.Kind)
+}
+
+func TestLoadBuiltinModuleInit(t *testing.T) {
+	fixture := newFixture(t)
+	dir := fixture.Dir("api")
+	fixture.File("api/__init__.py", "environ = {}\ndef getcwd():\n  pass\n")
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"getcwd"}, builtins.FunctionNames())
+	assert.Equal(t, []string{"environ"}, builtins.SymbolNames())
 }
 
 type fixture struct {
@@ -49,7 +80,23 @@ type builtinTest struct {
 	expectedSymbols []string
 }
 
+func assertContainsAll(t *testing.T, expected []string, actual []string) {
+	for _, exp := range expected {
+		found := false
+		for _, act := range actual {
+			if exp == act {
+				found = true
+				break
+			}
+		}
+		if !found {
+			assert.Fail(t, fmt.Sprintf("\"%s\" not found in %v", exp, actual))
+		}
+	}
+}
+
 func (b builtinTest) Run(f *fixture, name string) {
+
 	f.t.Run(name, func(t *testing.T) {
 		name := fmt.Sprintf("test%x.py", sha1.Sum([]byte(b.code)))
 		path := f.File(name, b.code)
@@ -57,9 +104,9 @@ func (b builtinTest) Run(f *fixture, name string) {
 		require.NoError(t, err)
 		switch b.ttype {
 		case testTypeFunctions:
-			assert.Equal(t, b.expectedSymbols, builtins.FunctionNames())
+			assertContainsAll(t, b.expectedSymbols, builtins.FunctionNames())
 		case testTypeSymbols:
-			assert.Equal(t, b.expectedSymbols, builtins.SymbolNames())
+			assertContainsAll(t, b.expectedSymbols, builtins.SymbolNames())
 		}
 	})
 }
