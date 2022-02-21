@@ -54,7 +54,7 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	content := doc.Content(node)
 	identifiers := strings.Split(content, ".")
 
-	symbols := query.DocumentSymbols(doc)
+	symbols := query.SymbolsInScope(doc, node)
 	symbols = append(symbols, a.builtins.Symbols...)
 
 	for i := 0; i < len(identifiers); i++ {
