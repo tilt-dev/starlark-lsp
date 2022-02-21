@@ -1,6 +1,8 @@
 package query
 
 import (
+	"strings"
+
 	"go.lsp.dev/protocol"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -28,6 +30,12 @@ func SiblingSymbols(doc document.Document, n *sitter.Node) []protocol.DocumentSy
 			symbol.Range = protocol.Range{
 				Start: PointToPosition(n.StartPoint()),
 				End:   PointToPosition(n.EndPoint()),
+			}
+			// Look for possible docstring for the assigned variable
+			if n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
+				if ch := n.NextNamedSibling().NamedChild(0); ch != nil && ch.Type() == NodeTypeString {
+					symbol.Detail = strings.Trim(doc.Content(ch), `"'`)
+				}
 			}
 		}
 
