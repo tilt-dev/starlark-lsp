@@ -84,9 +84,14 @@ func newQueryFixture(t testing.TB, queryPattern []byte, src string) *queryFixtur
 	t.Helper()
 
 	lang := python.GetLanguage()
-	q, err := sitter.NewQuery(queryPattern, lang)
-	t.Cleanup(q.Close)
-	require.NoError(t, err, "Error creating query %q", string(queryPattern))
+
+	var q *sitter.Query
+	var err error
+	if len(queryPattern) > 0 {
+		q, err = sitter.NewQuery(queryPattern, lang)
+		t.Cleanup(q.Close)
+		require.NoError(t, err, "Error creating query %q", string(queryPattern))
+	}
 
 	parseCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

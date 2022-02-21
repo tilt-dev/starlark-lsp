@@ -32,7 +32,7 @@ func SiblingSymbols(doc document.Document, n *sitter.Node) []protocol.DocumentSy
 				End:   PointToPosition(n.EndPoint()),
 			}
 			// Look for possible docstring for the assigned variable
-			if n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
+			if n.NextNamedSibling() != nil && n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
 				if ch := n.NextNamedSibling().NamedChild(0); ch != nil && ch.Type() == NodeTypeString {
 					symbol.Detail = strings.Trim(doc.Content(ch), `"'`)
 				}
