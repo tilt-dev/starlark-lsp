@@ -35,3 +35,25 @@ func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.
 	}
 	return nil, false
 }
+
+// NodeAtPosition returns the node (named or unnamed) with the smallest
+// start/end range that covers the given position.
+func NodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
+	namedNode, ok := NamedNodeAtPosition(doc, pos)
+	if !ok {
+		return nil, false
+	}
+	count := int(namedNode.ChildCount())
+	for i := 0; i < count; i++ {
+		child := namedNode.Child(i)
+		startPoint := child.StartPoint()
+		endPoint := child.EndPoint()
+		if startPoint.Row < pos.Line || endPoint.Row > pos.Line {
+			continue
+		}
+		if startPoint.Column <= pos.Character && endPoint.Column >= pos.Character {
+			return child, true
+		}
+	}
+	return namedNode, true
+}

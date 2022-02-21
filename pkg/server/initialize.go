@@ -27,6 +27,9 @@ func (s *Server) Initialize(ctx context.Context,
 				RetriggerCharacters: []string{","},
 			},
 			DocumentSymbolProvider: true,
+			CompletionProvider: &protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
+			},
 		},
 	}, nil
 }
