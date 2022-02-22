@@ -14,8 +14,8 @@ import (
 )
 
 type Builtins struct {
-	Functions map[string]protocol.SignatureInformation
-	Symbols   []protocol.DocumentSymbol
+	Functions map[string]protocol.SignatureInformation `json:"functions"`
+	Symbols   []protocol.DocumentSymbol                `json:"symbols"`
 }
 
 func NewBuiltins() *Builtins {
@@ -133,22 +133,12 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 		}
 
 		var modName string
-		if entry.IsDir() {
-			modName = entryName
-		} else {
-			modName = entryName[:len(entryName)-3]
-		}
-
-		modSym := protocol.DocumentSymbol{
-			Name:     modName,
-			Kind:     protocol.SymbolKindVariable,
-			Children: []protocol.DocumentSymbol{},
-		}
-
 		var modBuiltins *Builtins
 		if entry.IsDir() {
+			modName = entryName
 			modBuiltins, err = LoadBuiltinModule(ctx, filepath.Join(dir, entryName))
 		} else {
+			modName = entryName[:len(entryName)-len(".py")]
 			modBuiltins, err = LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
 		}
 
@@ -159,6 +149,8 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 		for name, fn := range modBuiltins.Functions {
 			builtins.Functions[modName+"."+name] = fn
 		}
+
+		children := []protocol.DocumentSymbol{}
 		for _, sym := range modBuiltins.Symbols {
 			var kind protocol.SymbolKind
 			switch sym.Kind {
@@ -167,14 +159,19 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 			default:
 				kind = protocol.SymbolKindField
 			}
-			modSym.Children = append(modSym.Children, protocol.DocumentSymbol{
-				Name:   sym.Name,
-				Kind:   kind,
-				Detail: sym.Detail,
+			children = append(children, protocol.DocumentSymbol{
+				Name:     sym.Name,
+				Kind:     kind,
+				Detail:   sym.Detail,
+				Children: sym.Children,
 			})
 		}
-		if len(modSym.Children) > 0 {
-			builtins.Symbols = append(builtins.Symbols, modSym)
+		if len(children) > 0 {
+			builtins.Symbols = append(builtins.Symbols, protocol.DocumentSymbol{
+				Name:     modName,
+				Kind:     protocol.SymbolKindVariable,
+				Children: children,
+			})
 		}
 	}
 	return builtins, nil

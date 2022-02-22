@@ -84,6 +84,30 @@ func TestLoadBuiltinModuleDirectory(t *testing.T) {
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 }
 
+func TestLoadBuiltinModuleDirectoryFile(t *testing.T) {
+	fixture := newFixture(t)
+	dir := fixture.Dir("api")
+	fixture.Dir("api/os")
+	fixture.File("api/os/fns.py", envGetcwd)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"os.fns.getcwd"}, builtins.FunctionNames())
+	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	osSym := builtins.Symbols[0]
+	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
+	assert.Equal(t, 1, len(osSym.Children))
+	fnsSym := osSym.Children[0]
+	assert.Equal(t, protocol.SymbolKindField, fnsSym.Kind)
+	assert.Equal(t, 2, len(fnsSym.Children))
+	environSym := fnsSym.Children[0]
+	assert.Equal(t, "environ", environSym.Name)
+	assert.Equal(t, protocol.SymbolKindField, environSym.Kind)
+	getcwdSym := fnsSym.Children[1]
+	assert.Equal(t, "getcwd", getcwdSym.Name)
+	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
+}
+
 type fixture struct {
 	t        *testing.T
 	ctx      context.Context
