@@ -6,6 +6,8 @@ import (
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap"
 
+	sitter "github.com/smacker/go-tree-sitter"
+
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
@@ -52,27 +54,15 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	}
 
 	content := doc.Content(node)
-	content = content[:pos.Character-node.StartPoint().Column]
-	identifiers := strings.Split(content, ".")
-	a.logger.Debug("completion",
-		zap.String("node", content),
-		zap.Strings("identifiers", identifiers))
 
-	symbols := query.SymbolsInScope(doc, node)
-	symbols = append(symbols, a.builtins.Symbols...)
+	a.logger.Debug("completion", zap.String("node", content), zap.String("type", node.Type()))
 
-	for i := 0; i < len(identifiers); i++ {
-		if i < len(identifiers)-1 {
-			sym := SymbolMatching(symbols, identifiers[i])
-			symbols = sym.Children
-			names := make([]string, len(symbols))
-			for j, s := range symbols {
-				names[j] = s.Name
-			}
-			a.logger.Debug("children", zap.String("id", identifiers[i]), zap.Strings("names", names))
-		} else {
-			symbols = SymbolsStartingWith(symbols, identifiers[i])
-		}
+	var symbols []protocol.DocumentSymbol
+
+	switch node.Type() {
+	case query.NodeTypeString:
+	default:
+		symbols = a.completeAttributeExpression(doc, node, content, pos)
 	}
 
 	completionList := &protocol.CompletionList{
@@ -91,4 +81,29 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 
 	a.logger.Debug("completion", zap.Strings("symbols", names))
 	return completionList
+}
+
+func (a *Analyzer) completeAttributeExpression(doc document.Document, node *sitter.Node, content string, pos protocol.Position) []protocol.DocumentSymbol {
+	// TODO(nicksieger): This is a naive way to parse an attribute expression
+	// a.b.c. Parse the nodes instead.
+	content = content[:pos.Character-node.StartPoint().Column]
+	identifiers := strings.Split(content, ".")
+	symbols := query.SymbolsInScope(doc, node)
+	symbols = append(symbols, a.builtins.Symbols...)
+
+	for i := 0; i < len(identifiers); i++ {
+		if i < len(identifiers)-1 {
+			sym := SymbolMatching(symbols, identifiers[i])
+			symbols = sym.Children
+			names := make([]string, len(symbols))
+			for j, s := range symbols {
+				names[j] = s.Name
+			}
+			a.logger.Debug("children", zap.String("id", identifiers[i]), zap.Strings("names", names))
+		} else {
+			symbols = SymbolsStartingWith(symbols, identifiers[i])
+		}
+	}
+
+	return symbols
 }

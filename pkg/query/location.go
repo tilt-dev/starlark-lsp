@@ -23,6 +23,12 @@ func PointToPosition(point sitter.Point) protocol.Position {
 	}
 }
 
+// Returns true if point a occurs before point b
+func PointBefore(a, b sitter.Point) bool {
+	return a.Row < b.Row ||
+		a.Row == b.Row && a.Column <= b.Column
+}
+
 // NamedNodeAtPosition returns the most granular named descendant at a position.
 func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
 	pt := PositionToPoint(pos)
@@ -36,24 +42,24 @@ func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.
 	return nil, false
 }
 
+func ChildNodeAtPosition(doc document.Document, pt sitter.Point, node *sitter.Node) (*sitter.Node, bool) {
+	count := int(node.NamedChildCount())
+	for i := 0; i < count; i++ {
+		child := node.NamedChild(i)
+		if PointBefore(child.StartPoint(), pt) && PointBefore(pt, child.EndPoint()) {
+			return ChildNodeAtPosition(doc, pt, child)
+		}
+	}
+	return node, true
+}
+
 // NodeAtPosition returns the node (named or unnamed) with the smallest
 // start/end range that covers the given position.
 func NodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
+	pt := PositionToPoint(pos)
 	namedNode, ok := NamedNodeAtPosition(doc, pos)
 	if !ok {
 		return nil, false
 	}
-	count := int(namedNode.ChildCount())
-	for i := 0; i < count; i++ {
-		child := namedNode.Child(i)
-		startPoint := child.StartPoint()
-		endPoint := child.EndPoint()
-		if startPoint.Row < pos.Line || endPoint.Row > pos.Line {
-			continue
-		}
-		if startPoint.Column <= pos.Character && endPoint.Column >= pos.Character {
-			return child, true
-		}
-	}
-	return namedNode, true
+	return ChildNodeAtPosition(doc, pt, namedNode)
 }
