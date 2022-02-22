@@ -15,6 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap/zaptest"
+
+	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 const envGetcwd = "environ = {}\ndef getcwd():\n  pass\n"
@@ -111,8 +114,10 @@ func TestLoadBuiltinModuleDirectoryFile(t *testing.T) {
 type fixture struct {
 	t        *testing.T
 	ctx      context.Context
+	a        *Analyzer
 	dir      string
 	builtins *Builtins
+	doc      document.Document
 }
 
 type testType int
@@ -171,6 +176,22 @@ func (f *fixture) Dir(name string) string {
 	return path
 }
 
+func (f *fixture) Symbols(names ...string) {
+	for _, name := range names {
+		f.builtins.Symbols = append(f.builtins.Symbols, protocol.DocumentSymbol{
+			Name: name,
+			Kind: protocol.SymbolKindVariable,
+		})
+	}
+}
+
+func (f *fixture) Document(content string) {
+	tree, _ := query.Parse(f.ctx, []byte(content))
+	doc := document.NewDocument([]byte(content), tree)
+	f.t.Cleanup(func() { doc.Close() })
+	f.doc = doc
+}
+
 func newFixture(t *testing.T) *fixture {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
@@ -181,13 +202,18 @@ func newFixture(t *testing.T) *fixture {
 	})
 	ctx = protocol.WithLogger(ctx, logger)
 
+	builtins := &Builtins{
+		Functions: make(map[string]protocol.SignatureInformation),
+		Symbols:   []protocol.DocumentSymbol{},
+	}
+	a, _ := NewAnalyzer(ctx)
+	a.builtins = builtins
+
 	return &fixture{
-		ctx: ctx,
-		t:   t,
-		dir: t.TempDir(),
-		builtins: &Builtins{
-			Functions: make(map[string]protocol.SignatureInformation),
-			Symbols:   []protocol.DocumentSymbol{},
-		},
+		ctx:      ctx,
+		t:        t,
+		dir:      t.TempDir(),
+		builtins: builtins,
+		a:        a,
 	}
 }

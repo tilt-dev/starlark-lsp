@@ -52,7 +52,11 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	}
 
 	content := doc.Content(node)
+	content = content[:pos.Character-node.StartPoint().Column]
 	identifiers := strings.Split(content, ".")
+	a.logger.Debug("completion",
+		zap.String("node", content),
+		zap.Strings("identifiers", identifiers))
 
 	symbols := query.SymbolsInScope(doc, node)
 	symbols = append(symbols, a.builtins.Symbols...)
@@ -61,6 +65,11 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 		if i < len(identifiers)-1 {
 			sym := SymbolMatching(symbols, identifiers[i])
 			symbols = sym.Children
+			names := make([]string, len(symbols))
+			for j, s := range symbols {
+				names[j] = s.Name
+			}
+			a.logger.Debug("children", zap.String("id", identifiers[i]), zap.Strings("names", names))
 		} else {
 			symbols = SymbolsStartingWith(symbols, identifiers[i])
 		}
