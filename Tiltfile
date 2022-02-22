@@ -11,15 +11,11 @@ def make(target, deps=src_dirs, resource_deps=[], **kwargs):
 builtins = []
 if os.path.exists('../tilt.build'):
     builtins.append('../tilt.build/api/api.py')
-
-modules = []
-if os.path.exists('../tilt.build/api/modules'):
-    modules.append('../tilt.build/api/modules')
+    builtins.append('../tilt.build/api/modules')
 
 def lsp_args():
     args = ['--address=127.0.0.1:8760']
     args.extend(['--builtin-paths='+b for b in builtins])
-    args.extend(['--builtin-modules='+m for m in modules])
     return ' '.join(args)
 
 serve_cmd = """while [ $? -eq 0 ]; do

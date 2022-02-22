@@ -22,7 +22,6 @@ type startCmd struct {
 	*cobra.Command
 	address         string
 	builtinDefPaths []string
-	builtinModPaths []string
 }
 
 func newStartCmd() *startCmd {
@@ -46,8 +45,9 @@ starlark-lsp start --verbose
 starlark-lsp start --address=":8765"
 
 # Provide type-stub style files to parse and treat as additional language
-# built-ins
-starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
+# built-ins. If path is a directory, treat files and directories inside
+# like python modules: subdir/__init__.py and subdir.py define a subdir module.
+starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/modules"
 `,
 		},
 	}
@@ -55,7 +55,7 @@ starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
 	cmd.Command.RunE = func(cc *cobra.Command, args []string) error {
 		var err error
 		ctx := cc.Context()
-		analyzer, err := createAnalyzer(ctx, cmd.builtinDefPaths, cmd.builtinModPaths)
+		analyzer, err := createAnalyzer(ctx, cmd.builtinDefPaths)
 		if err != nil {
 			return fmt.Errorf("failed to create analyzer: %v", err)
 		}
@@ -73,9 +73,7 @@ starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/bar.py"
 	cmd.Flags().StringVar(&cmd.address, "address", "",
 		"Address (hostname:port) to listen on")
 	cmd.Flags().StringArrayVar(&cmd.builtinDefPaths, "builtin-paths", nil,
-		"Paths to files to parse and treat as additional language builtins")
-	cmd.Flags().StringArrayVar(&cmd.builtinModPaths, "builtin-modules", nil,
-		"Paths to directories to parse and treat as additional language modules")
+		"Paths to files and directories to parse and treat as additional language builtins")
 
 	return &cmd
 }
@@ -169,15 +167,11 @@ func launchHandler(ctx context.Context, cancel context.CancelFunc, conn io.ReadW
 	return nil
 }
 
-func createAnalyzer(ctx context.Context, builtinDefPaths []string, builtinModPaths []string) (*analysis.Analyzer, error) {
+func createAnalyzer(ctx context.Context, builtinDefPaths []string) (*analysis.Analyzer, error) {
 	opts := []analysis.AnalyzerOption{}
 
 	if len(builtinDefPaths) > 0 {
 		opts = append(opts, analysis.WithBuiltinPaths(builtinDefPaths))
-	}
-
-	if len(builtinModPaths) > 0 {
-		opts = append(opts, analysis.WithBuiltinModulePaths(builtinModPaths))
 	}
 
 	return analysis.NewAnalyzer(ctx, opts...)

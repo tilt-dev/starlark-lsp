@@ -65,17 +65,6 @@ func WithBuiltinPaths(paths []string) AnalyzerOption {
 	}
 }
 
-func WithBuiltinModulePaths(paths []string) AnalyzerOption {
-	return func(analyzer *Analyzer) error {
-		builtins, err := LoadBuiltinModules(analyzer.context, paths)
-		if err != nil {
-			return err
-		}
-		analyzer.builtins.Update(builtins)
-		return nil
-	}
-}
-
 func WithBuiltinFunctions(sigs map[string]protocol.SignatureInformation) AnalyzerOption {
 	return func(analyzer *Analyzer) error {
 		analyzer.builtins.Update(&Builtins{Functions: sigs})
@@ -118,20 +107,6 @@ func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
 		Functions: functions,
 		Symbols:   symbols,
 	}, nil
-}
-
-func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
-	builtins := NewBuiltins()
-
-	for _, path := range filePaths {
-		fileBuiltins, err := LoadBuiltinsFromFile(ctx, path)
-		if err != nil {
-			return &Builtins{}, err
-		}
-		builtins.Update(fileBuiltins)
-	}
-
-	return builtins, nil
 }
 
 func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
@@ -205,14 +180,25 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 	return builtins, nil
 }
 
-func LoadBuiltinModules(ctx context.Context, moduleDirs []string) (*Builtins, error) {
+func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
 	builtins := NewBuiltins()
-	for _, dir := range moduleDirs {
-		modBuiltins, err := LoadBuiltinModule(ctx, dir)
+
+	for _, path := range filePaths {
+		fileInfo, err := os.Stat(path)
 		if err != nil {
-			return nil, err
+			return &Builtins{}, err
 		}
-		builtins.Update(modBuiltins)
+		var result *Builtins
+		if fileInfo.IsDir() {
+			result, err = LoadBuiltinModule(ctx, path)
+		} else {
+			result, err = LoadBuiltinsFromFile(ctx, path)
+		}
+		if err != nil {
+			return &Builtins{}, err
+		}
+		builtins.Update(result)
 	}
+
 	return builtins, nil
 }
