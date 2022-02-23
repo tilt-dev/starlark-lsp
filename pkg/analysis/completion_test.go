@@ -7,27 +7,7 @@ import (
 	"go.lsp.dev/protocol"
 )
 
-func TestSimpleCompletion(t *testing.T) {
-	f := newFixture(t)
-
-	f.Symbols("foo", "bar", "baz")
-
-	f.Document("")
-	result := f.a.Completion(f.doc, protocol.Position{})
-	assert.Equal(t, 3, len(result.Items))
-	assert.Equal(t, "foo", result.Items[0].Label)
-	assert.Equal(t, "bar", result.Items[1].Label)
-	assert.Equal(t, "baz", result.Items[2].Label)
-
-	f.Document("ba")
-	result = f.a.Completion(f.doc, protocol.Position{Character: 2})
-	assert.Equal(t, 2, len(result.Items))
-	assert.Equal(t, "bar", result.Items[0].Label)
-	assert.Equal(t, "baz", result.Items[1].Label)
-}
-
-func TestSimpleAttributeCompletion(t *testing.T) {
-	f := newFixture(t)
+func (f *fixture) symbolTree() {
 	f.Symbols("os", "sys")
 	f.builtins.Symbols[0].Children = []protocol.DocumentSymbol{
 		f.Symbol("environ"),
@@ -37,21 +17,64 @@ func TestSimpleAttributeCompletion(t *testing.T) {
 		f.Symbol("argv"),
 		f.Symbol("executable"),
 	}
+}
+
+func assertCompletionResult(t *testing.T, names []string, result *protocol.CompletionList) {
+	assert.Equal(t, len(names), len(result.Items))
+	for i, name := range names {
+		assert.Equal(t, name, result.Items[i].Label)
+	}
+}
+
+func TestSimpleCompletion(t *testing.T) {
+	f := newFixture(t)
+
+	f.Symbols("foo", "bar", "baz")
 
 	f.Document("")
 	result := f.a.Completion(f.doc, protocol.Position{})
-	assert.Equal(t, 2, len(result.Items))
-	assert.Equal(t, "os", result.Items[0].Label)
-	assert.Equal(t, "sys", result.Items[1].Label)
+	assertCompletionResult(t, []string{"foo", "bar", "baz"}, result)
+
+	f.Document("ba")
+	result = f.a.Completion(f.doc, protocol.Position{Character: 2})
+	assertCompletionResult(t, []string{"bar", "baz"}, result)
+}
+
+func TestSimpleAttributeCompletion(t *testing.T) {
+	f := newFixture(t)
+	f.symbolTree()
+
+	f.Document("")
+	result := f.a.Completion(f.doc, protocol.Position{})
+	assertCompletionResult(t, []string{"os", "sys"}, result)
 
 	f.Document("os.")
 	result = f.a.Completion(f.doc, protocol.Position{Character: 3})
-	assert.Equal(t, 2, len(result.Items))
-	assert.Equal(t, "environ", result.Items[0].Label)
-	assert.Equal(t, "name", result.Items[1].Label)
+	assertCompletionResult(t, []string{"environ", "name"}, result)
 
 	f.Document("os.e")
 	result = f.a.Completion(f.doc, protocol.Position{Character: 4})
-	assert.Equal(t, 1, len(result.Items))
-	assert.Equal(t, "environ", result.Items[0].Label)
+	assertCompletionResult(t, []string{"environ"}, result)
+}
+
+func TestCompletionMiddleOfDocument(t *testing.T) {
+	f := newFixture(t)
+	f.symbolTree()
+	f.Document(`
+def f1():
+    pass
+
+s = "a string"
+
+def f2():
+    # position 2
+	return False
+# position 1
+t = 1234
+`)
+	result := f.a.Completion(f.doc, protocol.Position{Line: 9}) // position 1
+	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
+
+	result = f.a.Completion(f.doc, protocol.Position{Line: 7, Character: 4}) // position 2
+	assertCompletionResult(t, []string{"f1", "s", "f2", "t", "os", "sys"}, result)
 }

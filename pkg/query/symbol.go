@@ -11,9 +11,9 @@ import (
 )
 
 // Get all symbols defined at the same level as the given node.
-func SiblingSymbols(doc document.Document, n *sitter.Node) []protocol.DocumentSymbol {
+func SiblingSymbols(doc document.Document, begin, end *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
-	for ; n != nil; n = n.NextNamedSibling() {
+	for n := begin; n != nil && n != end; n = n.NextNamedSibling() {
 		var symbol protocol.DocumentSymbol
 
 		if n.Type() == NodeTypeExpressionStatement {
@@ -61,12 +61,15 @@ func SiblingSymbols(doc document.Document, n *sitter.Node) []protocol.DocumentSy
 func SymbolsInScope(doc document.Document, start *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
 	for n := start; n.Parent() != nil; n = n.Parent() {
-		symbols = append(symbols, SiblingSymbols(doc, n.Parent().NamedChild(0))...)
+		// We only ignore symbols following the start node at the same level as
+		// the start node. In parent scopes, all symbols are visible. Hence, we
+		// pass `start` to SiblingSymbols, not `n`.
+		symbols = append(symbols, SiblingSymbols(doc, n.Parent().NamedChild(0), start)...)
 	}
 	return symbols
 }
 
 // DocumentSymbols returns all symbols with document-wide visibility.
 func DocumentSymbols(doc document.Document) []protocol.DocumentSymbol {
-	return SiblingSymbols(doc, doc.Tree().RootNode().NamedChild(0))
+	return SiblingSymbols(doc, doc.Tree().RootNode().NamedChild(0), nil)
 }
