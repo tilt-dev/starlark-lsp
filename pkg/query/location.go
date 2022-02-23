@@ -23,10 +23,40 @@ func PointToPosition(point sitter.Point) protocol.Position {
 	}
 }
 
-// Returns true if point a occurs before point b
+func PointCmp(a, b sitter.Point) int {
+	if a.Row < b.Row {
+		return -1
+	}
+
+	if a.Row > b.Row {
+		return 1
+	}
+
+	if a.Column < b.Column {
+		return -1
+	}
+
+	if a.Column > b.Column {
+		return 1
+	}
+
+	return 0
+}
+
+func PointBeforeOrEqual(a, b sitter.Point) bool {
+	return PointCmp(a, b) <= 0
+}
+
 func PointBefore(a, b sitter.Point) bool {
-	return a.Row < b.Row ||
-		a.Row == b.Row && a.Column <= b.Column
+	return PointCmp(a, b) < 0
+}
+
+func PointAfterOrEqual(a, b sitter.Point) bool {
+	return PointCmp(a, b) >= 0
+}
+
+func PointAfter(a, b sitter.Point) bool {
+	return PointCmp(a, b) > 0
 }
 
 // NamedNodeAtPosition returns the most granular named descendant at a position.

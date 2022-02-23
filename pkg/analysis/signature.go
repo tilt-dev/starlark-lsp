@@ -83,11 +83,11 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 }
 
 func possibleActiveParam(doc document.Document, node *sitter.Node, pos protocol.Position) uint32 {
-	pt := PositionToPoint(pos)
+	pt := query.PositionToPoint(pos)
 	argIndex := uint32(0)
 	for n := node; n != nil; n = n.NextSibling() {
-		inRange := PointBeforeOrEqual(n.StartPoint(), pt) &&
-			PointBeforeOrEqual(n.EndPoint(), pt)
+		inRange := query.PointBeforeOrEqual(n.StartPoint(), pt) &&
+			query.PointBeforeOrEqual(n.EndPoint(), pt)
 		if !inRange {
 			break
 		}
