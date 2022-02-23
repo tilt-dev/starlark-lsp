@@ -28,6 +28,9 @@ func TestInitialize(t *testing.T) {
 				RetriggerCharacters: []string{","},
 			},
 			DocumentSymbolProvider: true,
+			CompletionProvider: &protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
+			},
 		},
 	}
 	requireJsonEqual(t, expected, resp)

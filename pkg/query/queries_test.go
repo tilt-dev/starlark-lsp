@@ -77,6 +77,7 @@ type queryFixture struct {
 	t     testing.TB
 	q     *sitter.Query
 	input []byte
+	tree  *sitter.Tree
 	root  *sitter.Node
 }
 
@@ -84,21 +85,27 @@ func newQueryFixture(t testing.TB, queryPattern []byte, src string) *queryFixtur
 	t.Helper()
 
 	lang := python.GetLanguage()
-	q, err := sitter.NewQuery(queryPattern, lang)
-	t.Cleanup(q.Close)
-	require.NoError(t, err, "Error creating query %q", string(queryPattern))
+
+	var q *sitter.Query
+	var err error
+	if len(queryPattern) > 0 {
+		q, err = sitter.NewQuery(queryPattern, lang)
+		t.Cleanup(q.Close)
+		require.NoError(t, err, "Error creating query %q", string(queryPattern))
+	}
 
 	parseCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	srcBytes := []byte(src)
-	root, err := sitter.ParseCtx(parseCtx, srcBytes, lang)
+	tree, err := query.Parse(parseCtx, srcBytes)
 	require.NoError(t, err, "Error parsing source:\n-----%s\n-----", src)
 
 	f := queryFixture{
 		t:     t,
 		q:     q,
 		input: srcBytes,
-		root:  root,
+		tree:  tree,
+		root:  tree.RootNode(),
 	}
 	return &f
 }

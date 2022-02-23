@@ -11,20 +11,23 @@ def make(target, deps=src_dirs, resource_deps=[], **kwargs):
 builtins = []
 if os.path.exists('../tilt.build'):
     builtins.append('../tilt.build/api/api.py')
-    # builtins.extend(listdir('../tilt.build/api/modules', recursive=True))
+    builtins.append('../tilt.build/api/modules')
 
 def lsp_args():
     args = ['--address=127.0.0.1:8760']
     args.extend(['--builtin-paths='+b for b in builtins])
     return ' '.join(args)
 
-serve_cmd = """while [ $? -eq 0 ]; do
-  go run ./cmd/starlark-lsp --debug --verbose start %s
-done""" % lsp_args()
-local_resource('run', serve_cmd=serve_cmd, deps=src_dirs)
+local_resource(
+    'run',
+    serve_cmd="go run ./cmd/starlark-lsp --debug --verbose start %s" % lsp_args(),
+    deps=src_dirs
+)
 
 make('test', resource_deps=['run'])
 
-make(['fmt', 'lint', 'tidy', 'install'],
-     src_dirs + ['go.mod', 'go.sum'],
-     resource_deps=['test'])
+make(
+    ['fmt', 'lint', 'tidy', 'install'],
+    deps=src_dirs + ['go.mod', 'go.sum'],
+    resource_deps=['test']
+)

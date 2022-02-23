@@ -20,7 +20,6 @@ func (s *Server) DocumentSymbol(ctx context.Context,
 	symbols := query.DocumentSymbols(doc)
 	result := make([]interface{}, len(symbols))
 	for i := range symbols {
-		symbols[i].Location.URI = params.TextDocument.URI
 		result[i] = symbols[i]
 	}
 	return result, nil
