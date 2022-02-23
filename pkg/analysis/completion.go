@@ -61,6 +61,11 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 
 	switch node.Type() {
 	case query.NodeTypeString:
+		// No completion inside a string
+	case query.NodeTypeIdentifier:
+		node = node.Parent()
+		content = doc.Content(node)
+		symbols = a.completeAttributeExpression(doc, node, content, pos)
 	default:
 		symbols = a.completeAttributeExpression(doc, node, content, pos)
 	}

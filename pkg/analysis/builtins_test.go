@@ -178,10 +178,14 @@ func (f *fixture) Dir(name string) string {
 
 func (f *fixture) Symbols(names ...string) {
 	for _, name := range names {
-		f.builtins.Symbols = append(f.builtins.Symbols, protocol.DocumentSymbol{
-			Name: name,
-			Kind: protocol.SymbolKindVariable,
-		})
+		f.builtins.Symbols = append(f.builtins.Symbols, f.Symbol(name))
+	}
+}
+
+func (f *fixture) Symbol(name string) protocol.DocumentSymbol {
+	return protocol.DocumentSymbol{
+		Name: name,
+		Kind: protocol.SymbolKindVariable,
 	}
 }
 
