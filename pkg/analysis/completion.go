@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -55,13 +56,26 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 
 	content := doc.Content(node)
 
-	a.logger.Debug("completion", zap.String("node", content), zap.String("type", node.Type()))
+	a.logger.Debug("completion", zap.String("node", fmt.Sprintf("%.32s", content)), zap.String("type", node.Type()))
 
 	var symbols []protocol.DocumentSymbol
 
 	switch node.Type() {
 	case query.NodeTypeString:
 		// No completion inside a string
+	case query.NodeTypeModule:
+		// Advance to the first node that appears after the position
+		if node.NamedChildCount() > 0 {
+			pt := query.PositionToPoint(pos)
+			for node = node.NamedChild(0); query.PointBefore(node.StartPoint(), pt); {
+				next := node.NextNamedSibling()
+				if next == nil {
+					break
+				}
+				node = next
+			}
+		}
+		symbols = a.completeAttributeExpression(doc, node, content, pos)
 	case query.NodeTypeIdentifier:
 		node = node.Parent()
 		content = doc.Content(node)

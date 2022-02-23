@@ -7,7 +7,7 @@ import (
 	"go.lsp.dev/protocol"
 )
 
-func (f *fixture) symbolTree() {
+func (f *fixture) builtinSymbols() {
 	f.Symbols("os", "sys")
 	f.builtins.Symbols[0].Children = []protocol.DocumentSymbol{
 		f.Symbol("environ"),
@@ -21,6 +21,9 @@ func (f *fixture) symbolTree() {
 
 func assertCompletionResult(t *testing.T, names []string, result *protocol.CompletionList) {
 	assert.Equal(t, len(names), len(result.Items))
+	if len(names) != len(result.Items) {
+		return
+	}
 	for i, name := range names {
 		assert.Equal(t, name, result.Items[i].Label)
 	}
@@ -42,7 +45,7 @@ func TestSimpleCompletion(t *testing.T) {
 
 func TestSimpleAttributeCompletion(t *testing.T) {
 	f := newFixture(t)
-	f.symbolTree()
+	f.builtinSymbols()
 
 	f.Document("")
 	result := f.a.Completion(f.doc, protocol.Position{})
@@ -59,7 +62,7 @@ func TestSimpleAttributeCompletion(t *testing.T) {
 
 func TestCompletionMiddleOfDocument(t *testing.T) {
 	f := newFixture(t)
-	f.symbolTree()
+	f.builtinSymbols()
 	f.Document(`
 def f1():
     pass
@@ -67,14 +70,21 @@ def f1():
 s = "a string"
 
 def f2():
-    # position 2
+    # <- position 2
 	return False
-# position 1
+
+# <- position 1
+
+#^- position 3
+
 t = 1234
 `)
-	result := f.a.Completion(f.doc, protocol.Position{Line: 9}) // position 1
+	result := f.a.Completion(f.doc, protocol.Position{Line: 10}) // position 1
 	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
 
 	result = f.a.Completion(f.doc, protocol.Position{Line: 7, Character: 4}) // position 2
 	assertCompletionResult(t, []string{"f1", "s", "f2", "t", "os", "sys"}, result)
+
+	result = f.a.Completion(f.doc, protocol.Position{Line: 11}) // position 3
+	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
 }
