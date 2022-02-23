@@ -159,12 +159,9 @@ func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
 			default:
 				kind = protocol.SymbolKindField
 			}
-			children = append(children, protocol.DocumentSymbol{
-				Name:     sym.Name,
-				Kind:     kind,
-				Detail:   sym.Detail,
-				Children: sym.Children,
-			})
+			childSym := sym
+			childSym.Kind = kind
+			children = append(children, childSym)
 		}
 		if len(children) > 0 {
 			builtins.Symbols = append(builtins.Symbols, protocol.DocumentSymbol{
