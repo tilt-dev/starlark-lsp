@@ -18,13 +18,16 @@ def lsp_args():
     args.extend(['--builtin-paths='+b for b in builtins])
     return ' '.join(args)
 
-serve_cmd = """while [ $? -eq 0 ]; do
-  go run ./cmd/starlark-lsp --debug --verbose start %s
-done""" % lsp_args()
-local_resource('run', serve_cmd=serve_cmd, deps=src_dirs)
+local_resource(
+    'run',
+    serve_cmd="go run ./cmd/starlark-lsp --debug --verbose start %s" % lsp_args(),
+    deps=src_dirs
+)
 
 make('test', resource_deps=['run'])
 
-make(['fmt', 'lint', 'tidy', 'install'],
-     src_dirs + ['go.mod', 'go.sum'],
-     resource_deps=['test'])
+make(
+    ['fmt', 'lint', 'tidy', 'install'],
+    deps=src_dirs + ['go.mod', 'go.sum'],
+    resource_deps=['test']
+)
