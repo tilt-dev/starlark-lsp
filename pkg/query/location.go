@@ -59,6 +59,10 @@ func PointAfter(a, b sitter.Point) bool {
 	return PointCmp(a, b) > 0
 }
 
+func NodeBefore(a, b *sitter.Node) bool {
+	return a != nil && (b == nil || PointBefore(a.StartPoint(), b.StartPoint()))
+}
+
 // NamedNodeAtPosition returns the most granular named descendant at a position.
 func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
 	pt := PositionToPoint(pos)

@@ -11,9 +11,10 @@ import (
 )
 
 // Get all symbols defined at the same level as the given node.
-func SiblingSymbols(doc document.Document, begin, end *sitter.Node) []protocol.DocumentSymbol {
+// If before != nil, only include symbols that appear before that node.
+func SiblingSymbols(doc document.Document, node, before *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
-	for n := begin; n != nil && n != end; n = n.NextNamedSibling() {
+	for n := node; n != nil && NodeBefore(n, before); n = n.NextNamedSibling() {
 		var symbol protocol.DocumentSymbol
 
 		if n.Type() == NodeTypeExpressionStatement {
@@ -57,14 +58,21 @@ func SiblingSymbols(doc document.Document, begin, end *sitter.Node) []protocol.D
 	return symbols
 }
 
-// Get all symbols defined in scopes above the level of the given node.
-func SymbolsInScope(doc document.Document, start *sitter.Node) []protocol.DocumentSymbol {
+// Get all symbols defined in scopes at or above the level of the given node.
+func SymbolsInScope(doc document.Document, node *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
-	for n := start; n.Parent() != nil; n = n.Parent() {
-		// We only ignore symbols following the start node at the same level as
-		// the start node. In parent scopes, all symbols are visible. Hence, we
-		// pass `start` to SiblingSymbols, not `n`.
-		symbols = append(symbols, SiblingSymbols(doc, n.Parent().NamedChild(0), start)...)
+	// While we are in the current scope, only include symbols defined before
+	// the provided node.
+	before := node
+	for n := node; n.Parent() != nil; n = n.Parent() {
+		// A function definition creates an enclosing scope, where all symbols
+		// in the parent scope are visible. After that point, don't specify a
+		// before node.
+		if n.Type() == NodeTypeFunctionDef {
+			before = nil
+		}
+
+		symbols = append(symbols, SiblingSymbols(doc, n.Parent().NamedChild(0), before)...)
 	}
 	return symbols
 }

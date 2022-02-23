@@ -20,13 +20,11 @@ func (f *fixture) builtinSymbols() {
 }
 
 func assertCompletionResult(t *testing.T, names []string, result *protocol.CompletionList) {
-	assert.Equal(t, len(names), len(result.Items))
-	if len(names) != len(result.Items) {
-		return
+	labels := make([]string, len(result.Items))
+	for i, item := range result.Items {
+		labels[i] = item.Label
 	}
-	for i, name := range names {
-		assert.Equal(t, name, result.Items[i].Label)
-	}
+	assert.ElementsMatch(t, names, labels)
 }
 
 func TestSimpleCompletion(t *testing.T) {
@@ -77,6 +75,10 @@ def f2():
 
 #^- position 3
 
+if True:
+    # position 4
+	pass
+
 t = 1234
 `)
 	result := f.a.Completion(f.doc, protocol.Position{Line: 10}) // position 1
@@ -86,5 +88,8 @@ t = 1234
 	assertCompletionResult(t, []string{"f1", "s", "f2", "t", "os", "sys"}, result)
 
 	result = f.a.Completion(f.doc, protocol.Position{Line: 11}) // position 3
+	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
+
+	result = f.a.Completion(f.doc, protocol.Position{Line: 15, Character: 4}) // position 4
 	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
 }
