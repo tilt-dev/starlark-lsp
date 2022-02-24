@@ -89,6 +89,13 @@ func WithStarlarkBuiltins() AnalyzerOption {
 		if err != nil {
 			return err
 		}
+		analyzer.builtins.Update(&Builtins{
+			Symbols: []protocol.DocumentSymbol{
+				{Name: "False", Kind: protocol.SymbolKindBoolean},
+				{Name: "None", Kind: protocol.SymbolKindNull},
+				{Name: "True", Kind: protocol.SymbolKindBoolean},
+			},
+		})
 		analyzer.builtins.Update(builtins)
 		return nil
 	}

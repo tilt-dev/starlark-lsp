@@ -131,3 +131,20 @@ func TestCompletionStarlarkBuiltins(t *testing.T) {
 	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
 	assertCompletionResult(t, []string{"float", "fail"}, result)
 }
+
+func TestCompletionNoneTrueFalse(t *testing.T) {
+	f := newFixture(t)
+	f.builtinSymbols()
+
+	f.Document(`N`)
+	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
+	assertCompletionResult(t, []string{"None"}, result)
+
+	f.Document(`T`)
+	result = f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
+	assertCompletionResult(t, []string{"True"}, result)
+
+	f.Document(`F`)
+	result = f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
+	assertCompletionResult(t, []string{"False"}, result)
+}
