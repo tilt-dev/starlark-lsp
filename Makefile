@@ -24,3 +24,6 @@ fmt:
 
 install:
 	go install ./cmd/starlark-lsp
+
+builtins:
+	go run ./hack/starlark-builtins.go > pkg/analysis/builtins.py

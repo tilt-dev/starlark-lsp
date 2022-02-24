@@ -53,34 +53,12 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	if !ok {
 		return nil
 	}
-
-	content := doc.Content(node)
-
-	a.logger.Debug("completion", zap.String("node", fmt.Sprintf("%.32s", content)), zap.String("type", node.Type()))
+	node = adjustNodeForCompletion(node, query.PositionToPoint(pos))
 
 	var symbols []protocol.DocumentSymbol
-
-	switch node.Type() {
-	case query.NodeTypeString:
-		// No completion inside a string
-	case query.NodeTypeModule:
-		// Advance to the first node that appears after the position
-		if node.NamedChildCount() > 0 {
-			pt := query.PositionToPoint(pos)
-			for node = node.NamedChild(0); query.PointBefore(node.StartPoint(), pt); {
-				next := node.NextNamedSibling()
-				if next == nil {
-					break
-				}
-				node = next
-			}
-		}
-		symbols = a.completeAttributeExpression(doc, node, content, pos)
-	case query.NodeTypeIdentifier:
-		node = node.Parent()
-		content = doc.Content(node)
-		symbols = a.completeAttributeExpression(doc, node, content, pos)
-	default:
+	if node != nil {
+		content := doc.Content(node)
+		a.logger.Debug("completion", zap.String("node", fmt.Sprintf("%.32s", content)), zap.String("type", node.Type()))
 		symbols = a.completeAttributeExpression(doc, node, content, pos)
 	}
 
@@ -125,4 +103,52 @@ func (a *Analyzer) completeAttributeExpression(doc document.Document, node *sitt
 	}
 
 	return symbols
+}
+
+func adjustNodeForCompletion(node *sitter.Node, pt sitter.Point) *sitter.Node {
+	for {
+		reevaluate := false
+		switch node.Type() {
+		case query.NodeTypeString:
+			// No completion inside a string
+			node = nil
+		case query.NodeTypeModule:
+			// Advance to the first node that appears after the point
+			if node.NamedChildCount() > 0 {
+				for node = node.NamedChild(0); query.PointBefore(node.StartPoint(), pt); {
+					next := node.NextNamedSibling()
+					if next == nil {
+						break
+					}
+					node = next
+				}
+			}
+		case query.NodeTypeAttribute:
+			switch node.Parent().Type() {
+			case query.NodeTypeExpressionStatement:
+				node = node.Parent()
+			case query.NodeTypeAttribute:
+				node = node.Parent()
+				reevaluate = true
+			}
+		case query.NodeTypeIdentifier:
+			// If inside an attribute expression, capture the larger expression for
+			// completion.
+			switch node.Parent().Type() {
+			case query.NodeTypeExpressionStatement:
+				node = node.Parent()
+			case query.NodeTypeAttribute:
+				node = node.Parent()
+				reevaluate = true
+			}
+		case query.NodeTypeERROR:
+			node = node.Parent()
+			reevaluate = true
+		}
+
+		if !reevaluate {
+			break
+		}
+	}
+	return node
 }

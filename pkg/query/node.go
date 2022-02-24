@@ -7,8 +7,10 @@ const (
 	NodeTypeParameters          = "parameters"
 	NodeTypeIdentifier          = "identifier"
 	NodeTypeExpressionStatement = "expression_statement"
+	NodeTypeAttribute           = "attribute"
 	NodeTypeString              = "string"
 	NodeTypeBlock               = "block"
+	NodeTypeERROR               = "ERROR"
 
 	FieldName       = "name"
 	FieldParameters = "parameters"
