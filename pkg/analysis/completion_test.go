@@ -8,6 +8,10 @@ import (
 )
 
 func (f *fixture) builtinSymbols() {
+	_ = WithStarlarkBuiltins()(f.a)
+}
+
+func (f *fixture) osSysSymbols() {
 	f.Symbols("os", "sys")
 	f.builtins.Symbols[0].Children = []protocol.DocumentSymbol{
 		f.Symbol("environ"),
@@ -43,7 +47,7 @@ func TestSimpleCompletion(t *testing.T) {
 
 func TestSimpleAttributeCompletion(t *testing.T) {
 	f := newFixture(t)
-	f.builtinSymbols()
+	f.osSysSymbols()
 
 	f.Document("")
 	result := f.a.Completion(f.doc, protocol.Position{})
@@ -60,7 +64,7 @@ func TestSimpleAttributeCompletion(t *testing.T) {
 
 func TestCompletionMiddleOfDocument(t *testing.T) {
 	f := newFixture(t)
-	f.builtinSymbols()
+	f.osSysSymbols()
 	f.Document(`
 def f1():
     pass
@@ -92,4 +96,38 @@ t = 1234
 
 	result = f.a.Completion(f.doc, protocol.Position{Line: 15, Character: 4}) // position 4
 	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
+}
+
+func TestCompletionWithAnErrorNode(t *testing.T) {
+	f := newFixture(t)
+	f.osSysSymbols()
+	f.Document(`
+def foo():
+  pass
+
+f(
+
+def quux():
+  pass
+`)
+	result := f.a.Completion(f.doc, protocol.Position{Line: 4, Character: 1})
+	assertCompletionResult(t, []string{"foo"}, result)
+}
+
+func TestCompletionInsideAString(t *testing.T) {
+	f := newFixture(t)
+	f.osSysSymbols()
+	f.Document(`f = "abc123"`)
+
+	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 5})
+	assertCompletionResult(t, []string{}, result)
+}
+
+func TestCompletionStarlarkBuiltins(t *testing.T) {
+	f := newFixture(t)
+	f.builtinSymbols()
+	f.Document(`f`)
+
+	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
+	assertCompletionResult(t, []string{"float", "fail"}, result)
 }

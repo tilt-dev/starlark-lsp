@@ -80,7 +80,7 @@ func ChildNodeAtPosition(doc document.Document, pt sitter.Point, node *sitter.No
 	count := int(node.NamedChildCount())
 	for i := 0; i < count; i++ {
 		child := node.NamedChild(i)
-		if PointBefore(child.StartPoint(), pt) && PointBefore(pt, child.EndPoint()) {
+		if PointBeforeOrEqual(child.StartPoint(), pt) && PointBeforeOrEqual(pt, child.EndPoint()) {
 			return ChildNodeAtPosition(doc, pt, child)
 		}
 	}
