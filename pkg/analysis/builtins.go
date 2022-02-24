@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,9 @@ type Builtins struct {
 	Functions map[string]protocol.SignatureInformation `json:"functions"`
 	Symbols   []protocol.DocumentSymbol                `json:"symbols"`
 }
+
+//go:embed builtins.py
+var starlarkBuiltins []byte
 
 func NewBuiltins() *Builtins {
 	return &Builtins{
@@ -79,12 +83,26 @@ func WithBuiltinSymbols(symbols []protocol.DocumentSymbol) AnalyzerOption {
 	}
 }
 
+func WithStarlarkBuiltins() AnalyzerOption {
+	return func(analyzer *Analyzer) error {
+		builtins, err := LoadBuiltinsFromSource(analyzer.context, starlarkBuiltins, "builtins.py")
+		if err != nil {
+			return err
+		}
+		analyzer.builtins.Update(builtins)
+		return nil
+	}
+}
+
 func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return &Builtins{}, err
 	}
+	return LoadBuiltinsFromSource(ctx, contents, path)
+}
 
+func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (*Builtins, error) {
 	tree, err := query.Parse(ctx, contents)
 	if err != nil {
 		return &Builtins{}, fmt.Errorf("failed to parse %q: %v", path, err)

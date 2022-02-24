@@ -168,7 +168,7 @@ func launchHandler(ctx context.Context, cancel context.CancelFunc, conn io.ReadW
 }
 
 func createAnalyzer(ctx context.Context, builtinDefPaths []string) (*analysis.Analyzer, error) {
-	opts := []analysis.AnalyzerOption{}
+	opts := []analysis.AnalyzerOption{analysis.WithStarlarkBuiltins()}
 
 	if len(builtinDefPaths) > 0 {
 		opts = append(opts, analysis.WithBuiltinPaths(builtinDefPaths))
