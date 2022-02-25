@@ -249,6 +249,10 @@ func (t *testDocument) Content(n *sitter.Node) string {
 	return t.doc.Content(n)
 }
 
+func (t *testDocument) ContentRange(r sitter.Range) string {
+	return t.doc.ContentRange(r)
+}
+
 func (t *testDocument) Tree() *sitter.Tree {
 	return t.doc.Tree()
 }

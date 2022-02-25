@@ -10,3 +10,9 @@ import _ "embed"
 //   type-stub files for improved editor experience.
 //go:embed parameters.scm
 var FunctionParameters []byte
+
+// Extract all identifiers from the subtree. Include an extra empty identifier
+// "" if there is an error node with a trailing period.
+//
+//go:embed identifiers.scm
+var Identifiers []byte

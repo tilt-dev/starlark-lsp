@@ -4,6 +4,7 @@ import sitter "github.com/smacker/go-tree-sitter"
 
 type Document interface {
 	Content(n *sitter.Node) string
+	ContentRange(r sitter.Range) string
 
 	Tree() *sitter.Tree
 
@@ -33,6 +34,10 @@ var _ Document = document{}
 
 func (d document) Content(n *sitter.Node) string {
 	return n.Content(d.input)
+}
+
+func (d document) ContentRange(r sitter.Range) string {
+	return string(d.input[r.StartByte:r.EndByte])
 }
 
 func (d document) Tree() *sitter.Tree {

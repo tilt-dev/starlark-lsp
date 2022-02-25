@@ -9,6 +9,7 @@ const (
 	NodeTypeExpressionStatement = "expression_statement"
 	NodeTypeAttribute           = "attribute"
 	NodeTypeString              = "string"
+	NodeTypeComment             = "comment"
 	NodeTypeBlock               = "block"
 	NodeTypeERROR               = "ERROR"
 

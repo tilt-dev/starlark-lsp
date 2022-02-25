@@ -3,8 +3,11 @@ package analysis
 import (
 	"testing"
 
+	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/stretchr/testify/assert"
 	"go.lsp.dev/protocol"
+
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 func (f *fixture) builtinSymbols() {
@@ -147,4 +150,38 @@ func TestCompletionNoneTrueFalse(t *testing.T) {
 	f.Document(`F`)
 	result = f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
 	assertCompletionResult(t, []string{"False"}, result)
+}
+
+func TestIdentifierCompletion(t *testing.T) {
+	f := newFixture(t)
+
+	tests := []struct {
+		doc      string
+		col      uint32
+		expected []string
+	}{
+		{doc: "", col: 0, expected: []string{""}},
+		{doc: "os", col: 2, expected: []string{"os"}},
+		{doc: "os.", col: 3, expected: []string{"os", ""}},
+		{doc: "os.e", col: 4, expected: []string{"os", "e"}},
+		{doc: "os.path.", col: 8, expected: []string{"os", "path", ""}},
+		{doc: "os.path.e", col: 9, expected: []string{"os", "path", "e"}},
+		{doc: "[os]", col: 3, expected: []string{"os"}},
+		{doc: "[os.]", col: 4, expected: []string{"os", ""}},
+		{doc: "[os.e]", col: 5, expected: []string{"os", "e"}},
+		{doc: "x = [os]", col: 7, expected: []string{"os"}},
+		{doc: "x = [os.]", col: 8, expected: []string{"os", ""}},
+		{doc: "x = [os.e]", col: 9, expected: []string{"os", "e"}},
+		{doc: "x = [os.path.]", col: 13, expected: []string{"os", "path", ""}},
+		{doc: "x = [os.path.e]", col: 14, expected: []string{"os", "path", "e"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			f.Document(tt.doc)
+			nodes := nodesAtPointForCompletion(f.doc, sitter.Point{Column: tt.col})
+			ids := query.ExtractIdentifiers(f.doc, nodes, nil)
+			assert.ElementsMatch(t, tt.expected, ids)
+		})
+	}
 }
