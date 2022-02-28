@@ -147,19 +147,10 @@ func nodesForCompletion(node *sitter.Node, pt sitter.Point) []*sitter.Node {
 				node = next
 			}
 		}
-	case query.NodeTypeAttribute:
-		switch node.Parent().Type() {
-		case query.NodeTypeExpressionStatement:
-			node = node.Parent()
-		case query.NodeTypeAttribute:
-			nodes = nodesForCompletion(node.Parent(), pt)
-		}
-	case query.NodeTypeIdentifier:
+	case query.NodeTypeAttribute, query.NodeTypeIdentifier:
 		// If inside an attribute expression, capture the larger expression for
 		// completion.
 		switch node.Parent().Type() {
-		case query.NodeTypeExpressionStatement:
-			node = node.Parent()
 		case query.NodeTypeAttribute:
 			nodes = nodesForCompletion(node.Parent(), pt)
 		}
