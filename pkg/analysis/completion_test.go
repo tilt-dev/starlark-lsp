@@ -48,27 +48,7 @@ func TestSimpleCompletion(t *testing.T) {
 	assertCompletionResult(t, []string{"bar", "baz"}, result)
 }
 
-func TestSimpleAttributeCompletion(t *testing.T) {
-	f := newFixture(t)
-	f.osSysSymbols()
-
-	f.Document("")
-	result := f.a.Completion(f.doc, protocol.Position{})
-	assertCompletionResult(t, []string{"os", "sys"}, result)
-
-	f.Document("os.")
-	result = f.a.Completion(f.doc, protocol.Position{Character: 3})
-	assertCompletionResult(t, []string{"environ", "name"}, result)
-
-	f.Document("os.e")
-	result = f.a.Completion(f.doc, protocol.Position{Character: 4})
-	assertCompletionResult(t, []string{"environ"}, result)
-}
-
-func TestCompletionMiddleOfDocument(t *testing.T) {
-	f := newFixture(t)
-	f.osSysSymbols()
-	f.Document(`
+const docWithMultiplePlaces = `
 def f1():
     pass
 
@@ -87,24 +67,9 @@ if True:
 	pass
 
 t = 1234
-`)
-	result := f.a.Completion(f.doc, protocol.Position{Line: 10}) // position 1
-	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
+`
 
-	result = f.a.Completion(f.doc, protocol.Position{Line: 7, Character: 4}) // position 2
-	assertCompletionResult(t, []string{"f1", "s", "f2", "t", "os", "sys"}, result)
-
-	result = f.a.Completion(f.doc, protocol.Position{Line: 11}) // position 3
-	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
-
-	result = f.a.Completion(f.doc, protocol.Position{Line: 15, Character: 4}) // position 4
-	assertCompletionResult(t, []string{"f1", "s", "f2", "os", "sys"}, result)
-}
-
-func TestCompletionWithAnErrorNode(t *testing.T) {
-	f := newFixture(t)
-	f.osSysSymbols()
-	f.Document(`
+const docWithErrorNode = `
 def foo():
   pass
 
@@ -112,44 +77,66 @@ f(
 
 def quux():
   pass
-`)
-	result := f.a.Completion(f.doc, protocol.Position{Line: 4, Character: 1})
-	assertCompletionResult(t, []string{"foo"}, result)
-}
+`
 
-func TestCompletionInsideAString(t *testing.T) {
-	f := newFixture(t)
-	f.osSysSymbols()
-	f.Document(`f = "abc123"`)
+func TestCompletions(t *testing.T) {
+	tests := []struct {
+		doc            string
+		line, char     uint32
+		expected       []string
+		osSys, builtin bool
+	}{
+		{doc: "", expected: []string{"os", "sys"}, osSys: true},
+		{doc: "os.", char: 3, expected: []string{"environ", "name"}, osSys: true},
+		{doc: "os.e", char: 4, expected: []string{"environ"}, osSys: true},
 
-	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 5})
-	assertCompletionResult(t, []string{}, result)
-}
+		// position 1
+		{doc: docWithMultiplePlaces, line: 10, expected: []string{"f1", "s", "f2", "os", "sys"}, osSys: true},
+		// position 2
+		{doc: docWithMultiplePlaces, line: 7, char: 4, expected: []string{"f1", "s", "f2", "t", "os", "sys"}, osSys: true},
+		// position 3
+		{doc: docWithMultiplePlaces, line: 11, expected: []string{"f1", "s", "f2", "os", "sys"}, osSys: true},
+		// position 4
+		{doc: docWithMultiplePlaces, line: 15, char: 4, expected: []string{"f1", "s", "f2", "os", "sys"}, osSys: true},
+		{doc: docWithErrorNode, line: 4, char: 1, expected: []string{"foo"}, osSys: true},
+		// inside string
+		{doc: `f = "abc123"`, char: 5, expected: []string{}, osSys: true},
+		// inside comment
+		{doc: `f = true # abc123`, char: 12, expected: []string{}, osSys: true},
+		// builtins
+		{doc: `f`, char: 1, expected: []string{"float", "fail"}, builtin: true},
+		{doc: `N`, char: 1, expected: []string{"None"}, builtin: true},
+		{doc: `T`, char: 1, expected: []string{"True"}, builtin: true},
+		{doc: `F`, char: 1, expected: []string{"False"}, builtin: true},
+		// inside function body
+		{doc: "def fn():\n  \nx = True", line: 1, char: 2, expected: []string{"fn", "os", "sys"}, osSys: true},
+		// inside a list
+		{doc: "x = [os.]", char: 8, expected: []string{"environ", "name"}, osSys: true},
+		// inside a binary expression
+		{doc: "x = 'foo' + \nprint('')", char: 15, expected: []string{"x", "os", "sys"}, osSys: true},
+		{doc: "x = 'foo' + os.\nprint('')", char: 15, expected: []string{"environ", "name"}, osSys: true},
+		// inside function argument lists
+		{doc: `foo()`, char: 4, expected: []string{"os", "sys"}, osSys: true},
+		{doc: `foo(1, )`, char: 7, expected: []string{"os", "sys"}, osSys: true},
+		// inside condition of a conditional
+		{doc: "if :  pass\n", char: 3, expected: []string{"os", "sys"}, osSys: true},
+		{doc: "if os.:  pass\n", char: 6, expected: []string{"environ", "name"}, osSys: true},
+	}
 
-func TestCompletionStarlarkBuiltins(t *testing.T) {
-	f := newFixture(t)
-	f.builtinSymbols()
-	f.Document(`f`)
-
-	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
-	assertCompletionResult(t, []string{"float", "fail"}, result)
-}
-
-func TestCompletionNoneTrueFalse(t *testing.T) {
-	f := newFixture(t)
-	f.builtinSymbols()
-
-	f.Document(`N`)
-	result := f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
-	assertCompletionResult(t, []string{"None"}, result)
-
-	f.Document(`T`)
-	result = f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
-	assertCompletionResult(t, []string{"True"}, result)
-
-	f.Document(`F`)
-	result = f.a.Completion(f.doc, protocol.Position{Line: 0, Character: 1})
-	assertCompletionResult(t, []string{"False"}, result)
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			f := newFixture(t)
+			if tt.builtin {
+				f.builtinSymbols()
+			}
+			if tt.osSys {
+				f.osSysSymbols()
+			}
+			f.Document(tt.doc)
+			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			assertCompletionResult(t, tt.expected, result)
+		})
+	}
 }
 
 func TestIdentifierCompletion(t *testing.T) {
