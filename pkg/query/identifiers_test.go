@@ -10,6 +10,10 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
+func TestIdentifiersEmptyNodes(t *testing.T) {
+	assert.ElementsMatch(t, []string{""}, query.ExtractIdentifiers(nil, []*sitter.Node{}, nil))
+}
+
 func TestIdentifiers(t *testing.T) {
 	tests := []struct {
 		doc      string
@@ -35,6 +39,8 @@ func TestIdentifiers(t *testing.T) {
 print("")`, expected: []string{"os", "path", "print"}},
 		{doc: `os.path.
 print("")`, expected: []string{"os", "path", ""}, limit: &sitter.Point{Column: 8}},
+
+		{doc: "if x and : pass", expected: []string{"x", ""}},
 	}
 
 	for _, tt := range tests {

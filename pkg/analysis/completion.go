@@ -49,10 +49,10 @@ func ToCompletionItemKind(k protocol.SymbolKind) protocol.CompletionItemKind {
 
 func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *protocol.CompletionList {
 	pt := query.PositionToPoint(pos)
-	nodes := nodesAtPointForCompletion(doc, pt)
+	nodes, ok := a.nodesAtPointForCompletion(doc, pt)
+	symbols := []protocol.DocumentSymbol{}
 
-	var symbols []protocol.DocumentSymbol
-	if len(nodes) > 0 {
+	if ok {
 		symbols = a.completeExpression(doc, nodes, pt)
 	}
 
@@ -77,14 +77,23 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 }
 
 func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
-	symbols := append(query.SymbolsInScope(doc, nodes[len(nodes)-1]), a.builtins.Symbols...)
+	symbols := []protocol.DocumentSymbol{}
+	content := ""
+
+	if len(nodes) > 0 {
+		symbols = append(symbols, query.SymbolsInScope(doc, nodes[len(nodes)-1])...)
+		content = doc.ContentRange(sitter.Range{
+			StartByte: nodes[0].StartByte(),
+			EndByte:   nodes[len(nodes)-1].EndByte(),
+		})
+	} else {
+		content = doc.Content(doc.Tree().RootNode())
+	}
+	symbols = append(symbols, a.builtins.Symbols...)
 	identifiers := query.ExtractIdentifiers(doc, nodes, &pt)
 
 	a.logger.Debug("completion attempt",
-		zap.String("code", doc.ContentRange(sitter.Range{
-			StartByte: nodes[0].StartByte(),
-			EndByte:   nodes[len(nodes)-1].EndByte(),
-		})),
+		zap.String("code", content),
 		zap.Strings("nodes", func() []string {
 			types := make([]string, len(nodes))
 			for i, n := range nodes {
@@ -116,23 +125,24 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 	return symbols
 }
 
-func nodesAtPointForCompletion(doc document.Document, pt sitter.Point) []*sitter.Node {
+func (a *Analyzer) nodesAtPointForCompletion(doc document.Document, pt sitter.Point) ([]*sitter.Node, bool) {
 	node, ok := query.NodeAtPoint(doc, pt)
 	if !ok {
-		return []*sitter.Node{}
+		return []*sitter.Node{}, false
 	}
-	return nodesForCompletion(node, pt)
+	a.logger.Debug("node at point", zap.String("node", node.Type()))
+	return a.nodesForCompletion(doc, node, pt)
 }
 
 // Zoom in or out from the node to include adjacent attribute expressions, so we can
 // complete starting from the top-most attribute expression.
-func nodesForCompletion(node *sitter.Node, pt sitter.Point) []*sitter.Node {
+func (a *Analyzer) nodesForCompletion(doc document.Document, node *sitter.Node, pt sitter.Point) ([]*sitter.Node, bool) {
 	nodes := []*sitter.Node{}
 	switch node.Type() {
 	case query.NodeTypeString, query.NodeTypeComment:
 		if query.PointCovered(pt, node) {
 			// No completion inside a string or comment
-			return nodes
+			return nodes, false
 		}
 	case query.NodeTypeModule:
 		// Sometimes the top-level module is the most granular node due to
@@ -146,25 +156,67 @@ func nodesForCompletion(node *sitter.Node, pt sitter.Point) []*sitter.Node {
 				}
 				node = next
 			}
+			return a.nodesForCompletion(doc, node, pt)
 		}
+
+	case query.NodeTypeIfStatement,
+		query.NodeTypeExpressionStatement,
+		query.NodeTypeForStatement,
+		query.NodeTypeAssignment:
+		if node.NamedChildCount() == 1 {
+			return a.nodesForCompletion(doc, node.NamedChild(0), pt)
+		}
+
+		for i := 0; i < int(node.NamedChildCount()); i++ {
+			child := node.NamedChild(i)
+			if query.PointBefore(child.EndPoint(), pt) {
+				return a.leafNodesForCompletion(doc, child, pt)
+			}
+		}
+
 	case query.NodeTypeAttribute, query.NodeTypeIdentifier:
 		// If inside an attribute expression, capture the larger expression for
 		// completion.
 		switch node.Parent().Type() {
 		case query.NodeTypeAttribute:
-			nodes = nodesForCompletion(node.Parent(), pt)
+			nodes, _ = a.nodesForCompletion(doc, node.Parent(), pt)
 		}
+
 	case query.NodeTypeERROR:
-		if node.PrevNamedSibling() != nil {
-			nodes = nodesForCompletion(node.PrevNamedSibling(), pt)
-			nodes = append(nodes, node)
-		} else {
-			nodes = nodesForCompletion(node.Parent(), pt)
-		}
+		return a.leafNodesForCompletion(doc, node, pt)
 	}
 
 	if len(nodes) == 0 {
 		nodes = append(nodes, node)
 	}
-	return nodes
+	return nodes, true
+}
+
+// Look at all leaf nodes for the node and its previous sibling in a
+// flattened slice, in order of appearance. Take all consecutive trailing
+// identifiers or '.' as the attribute expression to complete.
+func (a *Analyzer) leafNodesForCompletion(doc document.Document, node *sitter.Node, pt sitter.Point) ([]*sitter.Node, bool) {
+	leafNodes := []*sitter.Node{}
+
+	if node.PrevNamedSibling() != nil {
+		leafNodes = append(leafNodes, query.LeafNodes(node.PrevNamedSibling())...)
+	}
+
+	leafNodes = append(leafNodes, query.LeafNodes(node)...)
+
+	// count number of trailing id/'.' nodes, if any
+	trailingCount := 0
+	leafCount := len(leafNodes)
+	for i := 0; i < leafCount && i == trailingCount; i++ {
+		switch leafNodes[leafCount-1-i].Type() {
+		case query.NodeTypeIdentifier, ".":
+			trailingCount++
+		}
+	}
+	nodes := make([]*sitter.Node, trailingCount)
+	for j := 0; j < len(nodes); j++ {
+		nodes[j] = leafNodes[leafCount-trailingCount+j]
+	}
+
+	return nodes, true
 }

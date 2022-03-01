@@ -119,8 +119,19 @@ func TestCompletions(t *testing.T) {
 		{doc: `foo()`, char: 4, expected: []string{"os", "sys"}, osSys: true},
 		{doc: `foo(1, )`, char: 7, expected: []string{"os", "sys"}, osSys: true},
 		// inside condition of a conditional
-		{doc: "if :  pass\n", char: 3, expected: []string{"os", "sys"}, osSys: true},
-		{doc: "if os.:  pass\n", char: 6, expected: []string{"environ", "name"}, osSys: true},
+		{doc: "if :\n  pass\n", char: 3, expected: []string{"os", "sys"}, osSys: true},
+		{doc: "if os.:\n  pass\n", char: 6, expected: []string{"environ", "name"}, osSys: true},
+		{doc: "if flag and os.:\n  pass\n", char: 15, expected: []string{"environ", "name"}, osSys: true},
+		// other edge cases
+		// - because this gets parsed as an ERROR node at the top level, there's
+		//   no assignment expression and the variable `flag` will not be in
+		//   scope
+		{doc: "flag = ", char: 7, expected: []string{"os", "sys"}, osSys: true},
+		{doc: "flag = os.", char: 10, expected: []string{"environ", "name"}, osSys: true},
+		// These should not trigger completion since the attribute expression is
+		// anchored to a function call
+		{doc: "flag = len(os).", char: 15, expected: []string{}, osSys: true},
+		{doc: "flag = len(os).sys", char: 15, expected: []string{}, osSys: true},
 	}
 
 	for _, tt := range tests {
@@ -161,12 +172,17 @@ func TestIdentifierCompletion(t *testing.T) {
 		{doc: "x = [os.e]", col: 9, expected: []string{"os", "e"}},
 		{doc: "x = [os.path.]", col: 13, expected: []string{"os", "path", ""}},
 		{doc: "x = [os.path.e]", col: 14, expected: []string{"os", "path", "e"}},
+		{doc: "x = ", col: 4, expected: []string{""}},
+		{doc: "if x and : pass", col: 9, expected: []string{""}},
+		{doc: "if x and os.: pass", col: 12, expected: []string{"os", ""}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
 			f.Document(tt.doc)
-			nodes := nodesAtPointForCompletion(f.doc, sitter.Point{Column: tt.col})
+			pt := sitter.Point{Column: tt.col}
+			nodes, ok := f.a.nodesAtPointForCompletion(f.doc, pt)
+			assert.True(t, ok)
 			ids := query.ExtractIdentifiers(f.doc, nodes, nil)
 			assert.ElementsMatch(t, tt.expected, ids)
 		})
