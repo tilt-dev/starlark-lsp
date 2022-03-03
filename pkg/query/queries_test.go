@@ -73,6 +73,51 @@ func TestFunctionParameters(t *testing.T) {
 	}
 }
 
+func TestLeafNodes(t *testing.T) {
+	tests := []struct {
+		src   string
+		nodes []string
+		types []string
+	}{
+		{
+			src:   "a or b",
+			nodes: []string{"a", "or", "b"},
+			types: []string{"identifier", "or", "identifier"},
+		},
+		{
+			src:   "a = b.",
+			nodes: []string{"a", "=", "b", "."},
+			types: []string{"identifier", "=", "identifier", "."},
+		},
+		{
+			src:   "a = b.c.",
+			nodes: []string{"a", "=", "b", ".", "c", "."},
+			types: []string{"identifier", "=", "identifier", ".", "identifier", "."},
+		},
+		{
+			src:   "if a or b: pass",
+			nodes: []string{"if", "a", "or", "b", ":", "pass"},
+			types: []string{"if", "identifier", "or", "identifier", ":", "pass"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			q := newQueryFixture(t, []byte{}, tt.src)
+			nodes := query.LeafNodes(q.root)
+			names := make([]string, len(nodes))
+			types := make([]string, len(nodes))
+			for i, n := range nodes {
+				names[i] = q.nodeContents(n)
+				types[i] = n.Type()
+			}
+			assert.ElementsMatch(t, tt.nodes, names)
+			assert.ElementsMatch(t, tt.types, types)
+		})
+	}
+
+}
+
 type queryFixture struct {
 	t     testing.TB
 	q     *sitter.Query

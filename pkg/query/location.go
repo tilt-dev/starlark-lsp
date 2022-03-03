@@ -59,13 +59,24 @@ func PointAfter(a, b sitter.Point) bool {
 	return PointCmp(a, b) > 0
 }
 
+func PointInside(a sitter.Point, b sitter.Range) bool {
+	return PointAfter(a, b.StartPoint) && PointBeforeOrEqual(a, b.EndPoint)
+}
+
+func PointCovered(a sitter.Point, b *sitter.Node) bool {
+	return PointInside(a, sitter.Range{StartPoint: b.StartPoint(), EndPoint: b.EndPoint()})
+}
+
 func NodeBefore(a, b *sitter.Node) bool {
 	return a != nil && (b == nil || PointBefore(a.StartPoint(), b.StartPoint()))
 }
 
 // NamedNodeAtPosition returns the most granular named descendant at a position.
 func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
-	pt := PositionToPoint(pos)
+	return NamedNodeAtPoint(doc, PositionToPoint(pos))
+}
+
+func NamedNodeAtPoint(doc document.Document, pt sitter.Point) (*sitter.Node, bool) {
 	if doc.Tree() == nil {
 		return nil, false
 	}
@@ -76,12 +87,12 @@ func NamedNodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.
 	return nil, false
 }
 
-func ChildNodeAtPosition(doc document.Document, pt sitter.Point, node *sitter.Node) (*sitter.Node, bool) {
+func ChildNodeAtPoint(doc document.Document, pt sitter.Point, node *sitter.Node) (*sitter.Node, bool) {
 	count := int(node.NamedChildCount())
 	for i := 0; i < count; i++ {
 		child := node.NamedChild(i)
 		if PointBeforeOrEqual(child.StartPoint(), pt) && PointBeforeOrEqual(pt, child.EndPoint()) {
-			return ChildNodeAtPosition(doc, pt, child)
+			return ChildNodeAtPoint(doc, pt, child)
 		}
 	}
 	return node, true
@@ -90,10 +101,13 @@ func ChildNodeAtPosition(doc document.Document, pt sitter.Point, node *sitter.No
 // NodeAtPosition returns the node (named or unnamed) with the smallest
 // start/end range that covers the given position.
 func NodeAtPosition(doc document.Document, pos protocol.Position) (*sitter.Node, bool) {
-	pt := PositionToPoint(pos)
-	namedNode, ok := NamedNodeAtPosition(doc, pos)
+	return NodeAtPoint(doc, PositionToPoint(pos))
+}
+
+func NodeAtPoint(doc document.Document, pt sitter.Point) (*sitter.Node, bool) {
+	namedNode, ok := NamedNodeAtPoint(doc, pt)
 	if !ok {
 		return nil, false
 	}
-	return ChildNodeAtPosition(doc, pt, namedNode)
+	return ChildNodeAtPoint(doc, pt, namedNode)
 }
