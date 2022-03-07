@@ -193,7 +193,7 @@ func (a *Analyzer) nodesForCompletion(doc document.Document, node *sitter.Node, 
 			nodes, _ = a.nodesForCompletion(doc, node.Parent(), pt)
 		}
 
-	case query.NodeTypeERROR:
+	case query.NodeTypeERROR, query.NodeTypeArgList:
 		leafNodes, ok := a.leafNodesForCompletion(doc, node, pt)
 		if len(leafNodes) > 0 {
 			return leafNodes, ok
@@ -242,7 +242,10 @@ var paramName = regexp.MustCompile(`^(\w+)`)
 
 func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, argIndex uint32) []protocol.DocumentSymbol {
 	symbols := []protocol.DocumentSymbol{}
-	for _, param := range fn.Parameters {
+	for i, param := range fn.Parameters {
+		if i < int(argIndex) {
+			continue
+		}
 		label := param.Label
 		match := paramName.FindSubmatch([]byte(label))
 		if match == nil {
