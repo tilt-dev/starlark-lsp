@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/tilt-dev/starlark-lsp/internal/cli"
+	"github.com/tilt-dev/starlark-lsp/pkg/cli"
 )
 
 func main() {
