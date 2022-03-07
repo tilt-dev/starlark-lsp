@@ -9,10 +9,6 @@ import (
 func ExtractIdentifiers(doc document.Document, nodes []*sitter.Node, limit *sitter.Point) []string {
 	identifiers := []string{}
 
-	if len(nodes) == 0 {
-		return []string{""}
-	}
-
 	for i, node := range nodes {
 		switch node.Type() {
 		case ".":
@@ -52,5 +48,10 @@ func ExtractIdentifiers(doc document.Document, nodes []*sitter.Node, limit *sitt
 			})
 		}
 	}
+
+	if len(identifiers) == 0 {
+		return []string{""}
+	}
+
 	return identifiers
 }

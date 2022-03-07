@@ -188,3 +188,91 @@ func TestIdentifierCompletion(t *testing.T) {
 		})
 	}
 }
+
+const functionFixture = `
+def docker_build(ref: str,
+                 context: str,
+                 build_args: Dict[str, str] = {},
+                 dockerfile: str = "Dockerfile",
+                 dockerfile_contents: Union[str, Blob] = "",
+                 live_update: List[LiveUpdateStep]=[],
+                 match_in_env_vars: bool = False,
+                 ignore: Union[str, List[str]] = [],
+                 only: Union[str, List[str]] = [],
+                 entrypoint: Union[str, List[str]] = [],
+                 target: str = "",
+                 ssh: Union[str, List[str]] = "",
+                 network: str = "",
+                 secret: Union[str, List[str]] = "",
+                 extra_tag: Union[str, List[str]] = "",
+                 container_args: List[str] = None,
+                 cache_from: Union[str, List[str]] = [],
+                 pull: bool = False,
+                 platform: str = "") -> None:
+    pass
+
+def local(command: Union[str, List[str]],
+          quiet: bool = False,
+          command_bat: Union[str, List[str]] = "",
+          echo_off: bool = False,
+          env: Dict[str, str] = {},
+          dir: str = "") -> Blob:
+    pass
+`
+
+const customFn = `
+def fn(a, b, c):
+  pass
+
+fn()
+fn(b=1,)
+`
+
+func TestKeywordArgCompletion(t *testing.T) {
+	f := newFixture(t)
+	f.ParseBuiltins(functionFixture)
+
+	tests := []struct {
+		doc        string
+		line, char uint32
+		expected   []string
+	}{
+		{doc: "local(c)", char: 7, expected: []string{"command=", "command_bat="}},
+		{doc: "local(c", char: 7, expected: []string{"command=", "command_bat="}},
+		{doc: "local()", char: 6, expected: []string{"command=", "quiet=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+		{doc: "local(", char: 6, expected: []string{"command=", "quiet=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+		{doc: "docker_build()", char: 13, expected: []string{"ref=", "context=", "build_args=", "dockerfile=", "dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
+
+		// past first arg, exclude `command`
+		{doc: "local('echo',", char: 13, expected: []string{"quiet=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+		// past second arg, exclude `ref` and `context`
+		{doc: "docker_build(ref, context,)", char: 26, expected: []string{"build_args=", "dockerfile=", "dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
+		// used several kwargs
+		{doc: "docker_build(ref='image:latest', context='.', dockerfile='Dockerfile.test', build_args={'DEBUG':'1'},)", char: 101,
+			expected: []string{"dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
+
+		// used `command` by position, `env` by keyword
+		{doc: "local('echo $MESSAGE', env={'MESSAGE':'HELLO'},)", char: 47, expected: []string{"quiet=", "command_bat=", "echo_off=", "dir=", "docker_build", "local"}},
+
+		// didn't use any positional arguments, but `quiet` is used
+		{doc: "local(quiet=True,)", char: 17, expected: []string{"command=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+
+		// started to complete a keyword argument
+		{doc: "local(quiet=True,command)", char: 24, expected: []string{"command=", "command_bat="}},
+
+		// not in an argument context
+		{doc: "local(quiet=True,command=)", char: 25, expected: []string{"docker_build", "local"}},
+		{doc: "local(quiet=True,command=c)", char: 25, expected: []string{}},
+
+		{doc: customFn, line: 4, char: 3, expected: []string{"a=", "b=", "c=", "fn", "docker_build", "local"}},
+		{doc: customFn, line: 5, char: 7, expected: []string{"a=", "c=", "fn", "docker_build", "local"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			f.Document(tt.doc)
+			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			assertCompletionResult(t, tt.expected, result)
+		})
+	}
+}

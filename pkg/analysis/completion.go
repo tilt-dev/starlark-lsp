@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -63,10 +65,17 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	names := make([]string, len(symbols))
 	for i, sym := range symbols {
 		names[i] = sym.Name
+		var sortText string
+		if strings.HasSuffix(sym.Name, "=") {
+			sortText = fmt.Sprintf("0%s", sym.Name)
+		} else {
+			sortText = fmt.Sprintf("1%s", sym.Name)
+		}
 		completionList.Items[i] = protocol.CompletionItem{
-			Label:  sym.Name,
-			Detail: sym.Detail,
-			Kind:   ToCompletionItemKind(sym.Kind),
+			Label:    sym.Name,
+			Detail:   sym.Detail,
+			Kind:     ToCompletionItemKind(sym.Kind),
+			SortText: sortText,
 		}
 	}
 
@@ -81,14 +90,22 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 	content := ""
 
 	if len(nodes) > 0 {
-		symbols = append(symbols, query.SymbolsInScope(doc, nodes[len(nodes)-1])...)
+		nodeAtPoint := nodes[len(nodes)-1]
+		symbols = append(symbols, query.SymbolsInScope(doc, nodeAtPoint)...)
 		content = doc.ContentRange(sitter.Range{
 			StartByte: nodes[0].StartByte(),
 			EndByte:   nodes[len(nodes)-1].EndByte(),
 		})
+
+		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
+			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
+				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
+			}
+		}
 	} else {
 		content = doc.Content(doc.Tree().RootNode())
 	}
+
 	symbols = append(symbols, a.builtins.Symbols...)
 	identifiers := query.ExtractIdentifiers(doc, nodes, &pt)
 
@@ -182,8 +199,12 @@ func (a *Analyzer) nodesForCompletion(doc document.Document, node *sitter.Node, 
 			nodes, _ = a.nodesForCompletion(doc, node.Parent(), pt)
 		}
 
-	case query.NodeTypeERROR:
-		return a.leafNodesForCompletion(doc, node, pt)
+	case query.NodeTypeERROR, query.NodeTypeArgList:
+		leafNodes, ok := a.leafNodesForCompletion(doc, node, pt)
+		if len(leafNodes) > 0 {
+			return leafNodes, ok
+		}
+		node = node.Child(int(node.ChildCount()) - 1)
 	}
 
 	if len(nodes) == 0 {
@@ -219,4 +240,41 @@ func (a *Analyzer) leafNodesForCompletion(doc document.Document, node *sitter.No
 	}
 
 	return nodes, true
+}
+
+// TODO: retain parsed function and parameter data so it doesn't need to be
+// parsed out of ParameterInformation.Label
+var paramName = regexp.MustCompile(`^(\w+)`)
+
+func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, args callArguments) []protocol.DocumentSymbol {
+	symbols := []protocol.DocumentSymbol{}
+	for i, param := range fn.Parameters {
+		if i < int(args.positional) {
+			continue
+		}
+		label := param.Label
+		match := paramName.FindSubmatch([]byte(label))
+		if match == nil {
+			continue
+		}
+		kwarg := string(match[1])
+		if used := args.keywords[kwarg]; !used {
+			symbols = append(symbols, protocol.DocumentSymbol{
+				Name:   kwarg + "=",
+				Detail: param.Label,
+				Kind:   protocol.SymbolKindVariable,
+			})
+		}
+	}
+	return symbols
+}
+
+func keywordArgContext(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {
+	if node.Type() == "=" ||
+		query.HasAncestor(node, func(anc *sitter.Node) bool {
+			return anc.Type() == query.NodeTypeKeywordArgument
+		}) {
+		return "", callArguments{}
+	}
+	return possibleCallInfo(doc, node, pt)
 }
