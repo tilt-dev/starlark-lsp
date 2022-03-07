@@ -220,6 +220,14 @@ def local(command: Union[str, List[str]],
     pass
 `
 
+const customFn = `
+def fn(a, b, c):
+  pass
+
+fn()
+fn(b=1,)
+`
+
 func TestKeywordArgCompletion(t *testing.T) {
 	f := newFixture(t)
 	f.ParseBuiltins(functionFixture)
@@ -255,6 +263,9 @@ func TestKeywordArgCompletion(t *testing.T) {
 		// not in an argument context
 		{doc: "local(quiet=True,command=)", char: 25, expected: []string{"docker_build", "local"}},
 		{doc: "local(quiet=True,command=c)", char: 25, expected: []string{}},
+
+		{doc: customFn, line: 4, char: 3, expected: []string{"a=", "b=", "c=", "fn", "docker_build", "local"}},
+		{doc: customFn, line: 5, char: 7, expected: []string{"a=", "c=", "fn", "docker_build", "local"}},
 	}
 
 	for _, tt := range tests {

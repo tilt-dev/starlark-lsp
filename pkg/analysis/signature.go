@@ -10,19 +10,7 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
-func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
-	pt := query.PositionToPoint(pos)
-	node, ok := query.NodeAtPoint(doc, pt)
-	if !ok {
-		return nil
-	}
-
-	fnName, args := possibleCallInfo(doc, node, pt)
-	if fnName == "" {
-		// avoid computing function defs
-		return nil
-	}
-
+func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node, fnName string) (protocol.SignatureInformation, bool) {
 	var sig protocol.SignatureInformation
 	for n := node; n != nil; n = n.Parent() {
 		var found bool
@@ -36,7 +24,24 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 		sig = a.builtins.Functions[fnName]
 	}
 
-	if sig.Label == "" {
+	return sig, sig.Label != ""
+}
+
+func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
+	pt := query.PositionToPoint(pos)
+	node, ok := query.NodeAtPoint(doc, pt)
+	if !ok {
+		return nil
+	}
+
+	fnName, args := possibleCallInfo(doc, node, pt)
+	if fnName == "" {
+		// avoid computing function defs
+		return nil
+	}
+
+	sig, ok := a.signatureInformation(doc, node, fnName)
+	if !ok {
 		return nil
 	}
 

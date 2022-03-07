@@ -93,7 +93,7 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 		})
 
 		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
-			if fn, ok := a.builtins.Functions[fnName]; ok {
+			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
 				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
 			}
 		}
