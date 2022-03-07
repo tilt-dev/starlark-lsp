@@ -9,14 +9,13 @@ import (
 )
 
 func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
-	// TODO(milas): this doesn't work right for ERROR states because we're only
-	// 	looking for named nodes
-	node, ok := query.NamedNodeAtPosition(doc, pos)
+	pt := query.PositionToPoint(pos)
+	node, ok := query.NodeAtPoint(doc, pt)
 	if !ok {
 		return nil
 	}
 
-	fnName, activeParam := possibleCallInfo(doc, node, pos)
+	fnName, activeParam := possibleCallInfo(doc, node, pt)
 	if fnName == "" {
 		// avoid computing function defs
 		return nil
@@ -58,11 +57,11 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 // 	(2) Current node is inside of an ERROR block where first child is an
 // 		`identifier`
 func possibleCallInfo(doc document.Document, node *sitter.Node,
-	pos protocol.Position) (fnName string, argIndex uint32) {
+	pt sitter.Point) (fnName string, argIndex uint32) {
 	for n := node; n != nil; n = n.Parent() {
 		if n.Type() == "call" {
 			fnName = doc.Content(n.ChildByFieldName("function"))
-			argIndex = possibleActiveParam(doc, n.ChildByFieldName("arguments").Child(0), pos)
+			argIndex = possibleActiveParam(doc, n.ChildByFieldName("arguments").Child(0), pt)
 			return fnName, argIndex
 		} else if n.HasError() {
 			// look for `foo(` and assume it's a function call - this could
@@ -73,7 +72,7 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 				possibleParen := possibleCall.NextSibling()
 				if possibleParen != nil && !possibleParen.IsNamed() && doc.Content(possibleParen) == "(" {
 					fnName = doc.Content(possibleCall)
-					argIndex = possibleActiveParam(doc, possibleParen.NextSibling(), pos)
+					argIndex = possibleActiveParam(doc, possibleParen.NextSibling(), pt)
 					return fnName, argIndex
 				}
 			}
@@ -82,8 +81,7 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 	return "", 0
 }
 
-func possibleActiveParam(doc document.Document, node *sitter.Node, pos protocol.Position) uint32 {
-	pt := query.PositionToPoint(pos)
+func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Point) uint32 {
 	argIndex := uint32(0)
 	for n := node; n != nil; n = n.NextSibling() {
 		inRange := query.PointBeforeOrEqual(n.StartPoint(), pt) &&

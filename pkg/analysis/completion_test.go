@@ -188,3 +188,59 @@ func TestIdentifierCompletion(t *testing.T) {
 		})
 	}
 }
+
+const functionFixture = `
+def docker_build(ref: str,
+                 context: str,
+                 build_args: Dict[str, str] = {},
+                 dockerfile: str = "Dockerfile",
+                 dockerfile_contents: Union[str, Blob] = "",
+                 live_update: List[LiveUpdateStep]=[],
+                 match_in_env_vars: bool = False,
+                 ignore: Union[str, List[str]] = [],
+                 only: Union[str, List[str]] = [],
+                 entrypoint: Union[str, List[str]] = [],
+                 target: str = "",
+                 ssh: Union[str, List[str]] = "",
+                 network: str = "",
+                 secret: Union[str, List[str]] = "",
+                 extra_tag: Union[str, List[str]] = "",
+                 container_args: List[str] = None,
+                 cache_from: Union[str, List[str]] = [],
+                 pull: bool = False,
+                 platform: str = "") -> None:
+    pass
+
+def local(command: Union[str, List[str]],
+          quiet: bool = False,
+          command_bat: Union[str, List[str]] = "",
+          echo_off: bool = False,
+          env: Dict[str, str] = {},
+          dir: str = "") -> Blob:
+    pass
+`
+
+func TestKeywordArgCompletion(t *testing.T) {
+	f := newFixture(t)
+	f.ParseBuiltins(functionFixture)
+
+	tests := []struct {
+		doc        string
+		line, char uint32
+		expected   []string
+	}{
+		{doc: "local(c)", char: 7, expected: []string{"command=", "command_bat="}},
+		{doc: "local(c", char: 7, expected: []string{"command=", "command_bat="}},
+		{doc: "local()", char: 6, expected: []string{"command=", "quiet=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+		{doc: "local(", char: 6, expected: []string{"command=", "quiet=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+		{doc: "docker_build()", char: 13, expected: []string{"ref=", "context=", "build_args=", "dockerfile=", "dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			f.Document(tt.doc)
+			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			assertCompletionResult(t, tt.expected, result)
+		})
+	}
+}

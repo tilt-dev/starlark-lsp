@@ -196,6 +196,13 @@ func (f *fixture) Document(content string) {
 	f.doc = doc
 }
 
+func (f *fixture) ParseBuiltins(content string) {
+	builtins, err := LoadBuiltinsFromSource(f.ctx, []byte(functionFixture), "__test__")
+	require.NoError(f.t, err)
+	f.a.builtins = builtins
+	f.builtins = builtins
+}
+
 func newFixture(t *testing.T) *fixture {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)

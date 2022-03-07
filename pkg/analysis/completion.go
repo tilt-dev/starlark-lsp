@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"regexp"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -42,6 +43,8 @@ func ToCompletionItemKind(k protocol.SymbolKind) protocol.CompletionItemKind {
 		return protocol.CompletionItemKindFunction
 	case protocol.SymbolKindMethod:
 		return protocol.CompletionItemKindMethod
+	case protocol.SymbolKindKey:
+		return protocol.CompletionItemKindText
 	default:
 		return protocol.CompletionItemKindVariable
 	}
@@ -81,14 +84,22 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 	content := ""
 
 	if len(nodes) > 0 {
-		symbols = append(symbols, query.SymbolsInScope(doc, nodes[len(nodes)-1])...)
+		nodeAtPoint := nodes[len(nodes)-1]
+		symbols = append(symbols, query.SymbolsInScope(doc, nodeAtPoint)...)
 		content = doc.ContentRange(sitter.Range{
 			StartByte: nodes[0].StartByte(),
 			EndByte:   nodes[len(nodes)-1].EndByte(),
 		})
+
+		if fnName, argIndex := possibleCallInfo(doc, nodeAtPoint, pt); fnName != "" {
+			if fn, ok := a.builtins.Functions[fnName]; ok {
+				symbols = append(symbols, a.keywordArgSymbols(fn, argIndex)...)
+			}
+		}
 	} else {
 		content = doc.Content(doc.Tree().RootNode())
 	}
+
 	symbols = append(symbols, a.builtins.Symbols...)
 	identifiers := query.ExtractIdentifiers(doc, nodes, &pt)
 
@@ -183,7 +194,11 @@ func (a *Analyzer) nodesForCompletion(doc document.Document, node *sitter.Node, 
 		}
 
 	case query.NodeTypeERROR:
-		return a.leafNodesForCompletion(doc, node, pt)
+		leafNodes, ok := a.leafNodesForCompletion(doc, node, pt)
+		if len(leafNodes) > 0 {
+			return leafNodes, ok
+		}
+		node = node.Child(int(node.ChildCount()) - 1)
 	}
 
 	if len(nodes) == 0 {
@@ -219,4 +234,25 @@ func (a *Analyzer) leafNodesForCompletion(doc document.Document, node *sitter.No
 	}
 
 	return nodes, true
+}
+
+// TODO: retain parsed function and parameter data so it doesn't need to be
+// parsed out of ParameterInformation.Label
+var paramName = regexp.MustCompile(`^(\w+)`)
+
+func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, argIndex uint32) []protocol.DocumentSymbol {
+	symbols := []protocol.DocumentSymbol{}
+	for _, param := range fn.Parameters {
+		label := param.Label
+		match := paramName.FindSubmatch([]byte(label))
+		if match == nil {
+			continue
+		}
+		symbols = append(symbols, protocol.DocumentSymbol{
+			Name:   string(match[1]) + "=",
+			Detail: param.Label,
+			Kind:   protocol.SymbolKindKey,
+		})
+	}
+	return symbols
 }
