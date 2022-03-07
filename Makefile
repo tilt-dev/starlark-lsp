@@ -20,7 +20,7 @@ tidy:
 	go mod tidy
 
 fmt:
-	goimports -w -l -local github.com/tilt-dev/starlark-lsp pkg/ cmd/ internal/
+	goimports -w -l -local github.com/tilt-dev/starlark-lsp cmd/ pkg/
 
 install:
 	go install ./cmd/starlark-lsp
