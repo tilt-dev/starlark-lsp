@@ -92,7 +92,7 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 			EndByte:   nodes[len(nodes)-1].EndByte(),
 		})
 
-		if fnName, args := possibleCallInfo(doc, nodeAtPoint, pt); fnName != "" {
+		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
 			if fn, ok := a.builtins.Functions[fnName]; ok {
 				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
 			}
@@ -262,4 +262,14 @@ func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, args call
 		}
 	}
 	return symbols
+}
+
+func keywordArgContext(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {
+	if node.Type() == "=" ||
+		query.HasAncestor(node, func(anc *sitter.Node) bool {
+			return anc.Type() == query.NodeTypeKeywordArgument
+		}) {
+		return "", callArguments{}
+	}
+	return possibleCallInfo(doc, node, pt)
 }

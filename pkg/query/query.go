@@ -34,3 +34,12 @@ func Query(node *sitter.Node, pattern []byte, matchFn MatchFunc) {
 		}
 	}
 }
+
+func HasAncestor(node *sitter.Node, compfn func(*sitter.Node) bool) bool {
+	for ; node != nil; node = node.Parent() {
+		if compfn(node) {
+			return true
+		}
+	}
+	return false
+}

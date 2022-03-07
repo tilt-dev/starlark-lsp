@@ -248,6 +248,10 @@ func TestKeywordArgCompletion(t *testing.T) {
 
 		// started to complete a keyword argument
 		{doc: "local(quiet=True,command)", char: 24, expected: []string{"command=", "command_bat="}},
+
+		// not in an argument context
+		{doc: "local(quiet=True,command=)", char: 25, expected: []string{"docker_build", "local"}},
+		{doc: "local(quiet=True,command=c)", char: 25, expected: []string{}},
 	}
 
 	for _, tt := range tests {
