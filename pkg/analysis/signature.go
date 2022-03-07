@@ -1,8 +1,6 @@
 package analysis
 
 import (
-	"sort"
-
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
@@ -64,7 +62,7 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 
 type callArguments struct {
 	positional, total uint32
-	keywords          []string
+	keywords          map[string]bool
 }
 
 // possibleCallInfo attempts to find the name of the function for a
@@ -99,7 +97,7 @@ func possibleCallInfo(doc document.Document, node *sitter.Node, pt sitter.Point)
 }
 
 func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Point) callArguments {
-	args := callArguments{}
+	args := callArguments{keywords: make(map[string]bool)}
 	for n := node; n != nil; n = n.NextSibling() {
 		inRange := query.PointBeforeOrEqual(n.StartPoint(), pt) &&
 			query.PointBeforeOrEqual(n.EndPoint(), pt)
@@ -115,9 +113,9 @@ func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Poi
 			continue
 		}
 		if n.Type() == query.NodeTypeKeywordArgument {
-			args.keywords = append(args.keywords, doc.Content(n.ChildByFieldName("name")))
+			name := doc.Content(n.ChildByFieldName("name"))
+			args.keywords[name] = true
 		}
 	}
-	sort.Strings(args.keywords)
 	return args
 }

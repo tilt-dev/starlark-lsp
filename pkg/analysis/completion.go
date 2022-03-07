@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"regexp"
-	"sort"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -253,7 +252,7 @@ func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, args call
 			continue
 		}
 		kwarg := string(match[1])
-		if idx := sort.SearchStrings(args.keywords, kwarg); idx >= len(args.keywords) || args.keywords[idx] != kwarg {
+		if used := args.keywords[kwarg]; !used {
 			symbols = append(symbols, protocol.DocumentSymbol{
 				Name:   kwarg + "=",
 				Detail: param.Label,
