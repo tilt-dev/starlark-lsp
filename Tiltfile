@@ -1,4 +1,4 @@
-src_dirs = ['cmd', 'internal', 'pkg']
+src_dirs = ['cmd', 'pkg']
 
 def make(target, deps=src_dirs, resource_deps=[], **kwargs):
     cmd = ['make', target]
