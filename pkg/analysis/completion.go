@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -43,8 +44,6 @@ func ToCompletionItemKind(k protocol.SymbolKind) protocol.CompletionItemKind {
 		return protocol.CompletionItemKindFunction
 	case protocol.SymbolKindMethod:
 		return protocol.CompletionItemKindMethod
-	case protocol.SymbolKindKey:
-		return protocol.CompletionItemKindText
 	default:
 		return protocol.CompletionItemKindVariable
 	}
@@ -66,10 +65,17 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	names := make([]string, len(symbols))
 	for i, sym := range symbols {
 		names[i] = sym.Name
+		var sortText string
+		if strings.HasSuffix(sym.Name, "=") {
+			sortText = fmt.Sprintf("0%s", sym.Name)
+		} else {
+			sortText = fmt.Sprintf("1%s", sym.Name)
+		}
 		completionList.Items[i] = protocol.CompletionItem{
-			Label:  sym.Name,
-			Detail: sym.Detail,
-			Kind:   ToCompletionItemKind(sym.Kind),
+			Label:    sym.Name,
+			Detail:   sym.Detail,
+			Kind:     ToCompletionItemKind(sym.Kind),
+			SortText: sortText,
 		}
 	}
 
@@ -256,7 +262,7 @@ func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, args call
 			symbols = append(symbols, protocol.DocumentSymbol{
 				Name:   kwarg + "=",
 				Detail: param.Label,
-				Kind:   protocol.SymbolKindKey,
+				Kind:   protocol.SymbolKindVariable,
 			})
 		}
 	}
