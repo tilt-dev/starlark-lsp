@@ -239,6 +239,15 @@ func TestKeywordArgCompletion(t *testing.T) {
 		{doc: "local('echo',", char: 13, expected: []string{"quiet=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
 		// past second arg, exclude `ref` and `context`
 		{doc: "docker_build(ref, context,)", char: 26, expected: []string{"build_args=", "dockerfile=", "dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
+
+		// used `command` by position, `env` by keyword
+		{doc: "local('echo $MESSAGE', env={'MESSAGE':'HELLO'},)", char: 47, expected: []string{"quiet=", "command_bat=", "echo_off=", "dir=", "docker_build", "local"}},
+
+		// didn't use any positional arguments, but `quiet` is used
+		{doc: "local(quiet=True,)", char: 17, expected: []string{"command=", "command_bat=", "echo_off=", "env=", "dir=", "docker_build", "local"}},
+
+		// started to complete a keyword argument
+		{doc: "local(quiet=True,command)", char: 24, expected: []string{"command=", "command_bat="}},
 	}
 
 	for _, tt := range tests {

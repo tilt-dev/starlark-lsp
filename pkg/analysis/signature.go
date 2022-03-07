@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"sort"
+
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
@@ -15,7 +17,7 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 		return nil
 	}
 
-	fnName, activeParam := possibleCallInfo(doc, node, pt)
+	fnName, args := possibleCallInfo(doc, node, pt)
 	if fnName == "" {
 		// avoid computing function defs
 		return nil
@@ -38,6 +40,12 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 		return nil
 	}
 
+	activeParam := uint32(0)
+
+	if args.positional == args.total {
+		activeParam = args.positional
+	}
+
 	if activeParam > uint32(len(sig.Parameters)-1) {
 		activeParam = uint32(len(sig.Parameters) - 1)
 	}
@@ -49,6 +57,11 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 	}
 }
 
+type callArguments struct {
+	positional, total uint32
+	keywords          []string
+}
+
 // possibleCallInfo attempts to find the name of the function for a
 // `call`.
 //
@@ -56,13 +69,12 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 // 	(1) Current node is inside of a `call`
 // 	(2) Current node is inside of an ERROR block where first child is an
 // 		`identifier`
-func possibleCallInfo(doc document.Document, node *sitter.Node,
-	pt sitter.Point) (fnName string, argIndex uint32) {
+func possibleCallInfo(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {
 	for n := node; n != nil; n = n.Parent() {
 		if n.Type() == "call" {
 			fnName = doc.Content(n.ChildByFieldName("function"))
-			argIndex = possibleActiveParam(doc, n.ChildByFieldName("arguments").Child(0), pt)
-			return fnName, argIndex
+			args = possibleActiveParam(doc, n.ChildByFieldName("arguments").Child(0), pt)
+			return fnName, args
 		} else if n.HasError() {
 			// look for `foo(` and assume it's a function call - this could
 			// happen if the closing `)` is not (yet) present or if there's
@@ -72,17 +84,17 @@ func possibleCallInfo(doc document.Document, node *sitter.Node,
 				possibleParen := possibleCall.NextSibling()
 				if possibleParen != nil && !possibleParen.IsNamed() && doc.Content(possibleParen) == "(" {
 					fnName = doc.Content(possibleCall)
-					argIndex = possibleActiveParam(doc, possibleParen.NextSibling(), pt)
-					return fnName, argIndex
+					args = possibleActiveParam(doc, possibleParen.NextSibling(), pt)
+					return fnName, args
 				}
 			}
 		}
 	}
-	return "", 0
+	return "", callArguments{}
 }
 
-func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Point) uint32 {
-	argIndex := uint32(0)
+func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Point) callArguments {
+	args := callArguments{}
 	for n := node; n != nil; n = n.NextSibling() {
 		inRange := query.PointBeforeOrEqual(n.StartPoint(), pt) &&
 			query.PointBeforeOrEqual(n.EndPoint(), pt)
@@ -91,8 +103,16 @@ func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Poi
 		}
 
 		if !n.IsNamed() && doc.Content(n) == "," {
-			argIndex++
+			args.total++
+			if len(args.keywords) == 0 {
+				args.positional++
+			}
+			continue
+		}
+		if n.Type() == query.NodeTypeKeywordArgument {
+			args.keywords = append(args.keywords, doc.Content(n.ChildByFieldName("name")))
 		}
 	}
-	return argIndex
+	sort.Strings(args.keywords)
+	return args
 }

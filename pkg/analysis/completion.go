@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -91,9 +92,9 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 			EndByte:   nodes[len(nodes)-1].EndByte(),
 		})
 
-		if fnName, argIndex := possibleCallInfo(doc, nodeAtPoint, pt); fnName != "" {
+		if fnName, args := possibleCallInfo(doc, nodeAtPoint, pt); fnName != "" {
 			if fn, ok := a.builtins.Functions[fnName]; ok {
-				symbols = append(symbols, a.keywordArgSymbols(fn, argIndex)...)
+				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
 			}
 		}
 	} else {
@@ -240,10 +241,10 @@ func (a *Analyzer) leafNodesForCompletion(doc document.Document, node *sitter.No
 // parsed out of ParameterInformation.Label
 var paramName = regexp.MustCompile(`^(\w+)`)
 
-func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, argIndex uint32) []protocol.DocumentSymbol {
+func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, args callArguments) []protocol.DocumentSymbol {
 	symbols := []protocol.DocumentSymbol{}
 	for i, param := range fn.Parameters {
-		if i < int(argIndex) {
+		if i < int(args.positional) {
 			continue
 		}
 		label := param.Label
@@ -251,11 +252,14 @@ func (a *Analyzer) keywordArgSymbols(fn protocol.SignatureInformation, argIndex 
 		if match == nil {
 			continue
 		}
-		symbols = append(symbols, protocol.DocumentSymbol{
-			Name:   string(match[1]) + "=",
-			Detail: param.Label,
-			Kind:   protocol.SymbolKindKey,
-		})
+		kwarg := string(match[1])
+		if idx := sort.SearchStrings(args.keywords, kwarg); idx >= len(args.keywords) || args.keywords[idx] != kwarg {
+			symbols = append(symbols, protocol.DocumentSymbol{
+				Name:   kwarg + "=",
+				Detail: param.Label,
+				Kind:   protocol.SymbolKindKey,
+			})
+		}
 	}
 	return symbols
 }

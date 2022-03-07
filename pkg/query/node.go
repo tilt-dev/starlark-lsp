@@ -5,6 +5,7 @@ const (
 	NodeTypeArgList             = "argument_list"
 	NodeTypeFunctionDef         = "function_definition"
 	NodeTypeParameters          = "parameters"
+	NodeTypeKeywordArgument     = "keyword_argument"
 	NodeTypeIdentifier          = "identifier"
 	NodeTypeIfStatement         = "if_statement"
 	NodeTypeExpressionStatement = "expression_statement"
