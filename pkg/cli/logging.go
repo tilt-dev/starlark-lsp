@@ -6,13 +6,17 @@ import (
 	"go.uber.org/zap"
 )
 
-func mustInitializeLogger(level zap.AtomicLevel) *zap.Logger {
+func NewLogger() (logger *zap.Logger, cleanup func()) {
 	cfg := zap.NewDevelopmentConfig()
-	cfg.Level = level
+	cfg.Level = logLevel
 	cfg.Development = false
 	logger, err := cfg.Build()
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize logger: %v", err))
 	}
-	return logger
+
+	cleanup = func() {
+		_ = logger.Sync()
+	}
+	return logger, cleanup
 }

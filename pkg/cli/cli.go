@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+var logLevel = zap.NewAtomicLevelAt(zapcore.WarnLevel)
+
 type RootCmd struct {
 	*cobra.Command
 	debug   bool
@@ -29,49 +31,31 @@ func NewRootCmd() *RootCmd {
 	cmd.PersistentFlags().BoolVar(&cmd.debug, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().BoolVar(&cmd.verbose, "verbose", false, "Enable verbose logging")
 
+	cmd.PersistentPreRun = func(cc *cobra.Command, args []string) {
+		if cmd.debug {
+			logLevel.SetLevel(zapcore.DebugLevel)
+		} else if cmd.verbose {
+			logLevel.SetLevel(zapcore.InfoLevel)
+		}
+	}
+
 	cmd.AddCommand(newStartCmd().Command)
 
 	return &cmd
 }
 
-func (c *RootCmd) Logger() (logger *zap.Logger, cleanup func()) {
-	level := zap.NewAtomicLevelAt(zapcore.WarnLevel)
-	logger = mustInitializeLogger(level)
-	if c.debug {
-		level.SetLevel(zapcore.DebugLevel)
-	} else if c.verbose {
-		level.SetLevel(zapcore.InfoLevel)
-	}
+func Execute() {
+	logger, cleanup := NewLogger()
+	defer cleanup()
 
-	cleanup = func() {
-		// use defer rather than PersistentPostRun to ensure execution on panic
-		_ = logger.Sync()
-	}
-
-	return logger, cleanup
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the RootCmd.
-func (c *RootCmd) Execute(ctx context.Context) error {
+	ctx := protocol.WithLogger(context.Background(), logger)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	setupSignalHandler(cancel)
 
-	return c.ExecuteContext(ctx)
-}
-
-func Execute() {
-	c := NewRootCmd()
-	logger, cleanup := c.Logger()
-	defer cleanup()
-
-	ctx := protocol.WithLogger(context.Background(), logger)
-
-	err := c.Execute(ctx)
+	err := NewRootCmd().ExecuteContext(ctx)
 	if err != nil {
 		if !isCobraError(err) {
-			logger := protocol.LoggerFromContext(ctx)
 			logger.Error("fatal error", zap.Error(err))
 		}
 		os.Exit(1)
