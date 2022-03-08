@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"crypto/sha1"
+	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,9 @@ import (
 
 const envGetcwd = "environ = {}\ndef getcwd():\n  pass\n"
 
+//go:embed test/*.py
+var testFS embed.FS
+
 func TestLoadBuiltinsFromFile(t *testing.T) {
 	fixture := newFixture(t)
 	tests := []builtinTest{
@@ -40,6 +44,24 @@ func TestLoadBuiltinModule(t *testing.T) {
 	dir := fixture.Dir("api")
 	fixture.File("api/os.py", envGetcwd)
 	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
+	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	osSym := builtins.Symbols[0]
+	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
+	assert.Equal(t, 2, len(osSym.Children))
+	environSym := osSym.Children[0]
+	assert.Equal(t, "environ", environSym.Name)
+	assert.Equal(t, protocol.SymbolKindField, environSym.Kind)
+	getcwdSym := osSym.Children[1]
+	assert.Equal(t, "getcwd", getcwdSym.Name)
+	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
+}
+
+func TestLoadBuiltinModuleFS(t *testing.T) {
+	fixture := newFixture(t)
+	builtins, err := LoadBuiltinModuleFS(fixture.ctx, testFS, "test")
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
@@ -85,6 +107,39 @@ func TestLoadBuiltinModuleDirectory(t *testing.T) {
 	getcwdSym := osSym.Children[1]
 	assert.Equal(t, "getcwd", getcwdSym.Name)
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
+}
+
+func TestLoadBuiltinModuleEmptyDirectories(t *testing.T) {
+	fixture := newFixture(t)
+	dir := fixture.Dir("api")
+	fixture.Dir("api/os")
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	require.NoError(t, err)
+	assert.True(t, builtins.IsEmpty())
+}
+
+func TestLoadBuiltinModuleMultipleModules(t *testing.T) {
+	fixture := newFixture(t)
+	dir := fixture.Dir("api")
+	fixture.Dir("api/os")
+	fixture.File("api/os.py", `name: str = ""`)
+	fixture.File("api/os/__init__.py", envGetcwd)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	osSym := builtins.Symbols[0]
+	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
+	assert.Equal(t, 3, len(osSym.Children))
+	environSym := osSym.Children[0]
+	assert.Equal(t, "environ", environSym.Name)
+	assert.Equal(t, protocol.SymbolKindField, environSym.Kind)
+	getcwdSym := osSym.Children[1]
+	assert.Equal(t, "getcwd", getcwdSym.Name)
+	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
+	nameSym := osSym.Children[2]
+	assert.Equal(t, "name", nameSym.Name)
+	assert.Equal(t, protocol.SymbolKindField, nameSym.Kind)
 }
 
 func TestLoadBuiltinModuleDirectoryFile(t *testing.T) {
