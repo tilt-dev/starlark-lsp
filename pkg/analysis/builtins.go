@@ -22,7 +22,7 @@ type Builtins struct {
 }
 
 //go:embed builtins.py
-var starlarkBuiltins []byte
+var StarlarkBuiltins []byte
 
 func NewBuiltins() *Builtins {
 	return &Builtins{
@@ -91,7 +91,7 @@ func WithBuiltinSymbols(symbols []protocol.DocumentSymbol) AnalyzerOption {
 
 func WithStarlarkBuiltins() AnalyzerOption {
 	return func(analyzer *Analyzer) error {
-		builtins, err := LoadBuiltinsFromSource(analyzer.context, starlarkBuiltins, "builtins.py")
+		builtins, err := LoadBuiltinsFromSource(analyzer.context, StarlarkBuiltins, "builtins.py")
 		if err != nil {
 			return err
 		}
