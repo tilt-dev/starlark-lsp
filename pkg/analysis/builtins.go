@@ -4,8 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -20,13 +22,17 @@ type Builtins struct {
 }
 
 //go:embed builtins.py
-var starlarkBuiltins []byte
+var StarlarkBuiltins []byte
 
 func NewBuiltins() *Builtins {
 	return &Builtins{
 		Functions: make(map[string]protocol.SignatureInformation),
 		Symbols:   []protocol.DocumentSymbol{},
 	}
+}
+
+func (b *Builtins) IsEmpty() bool {
+	return len(b.Functions) == 0 && len(b.Symbols) == 0
 }
 
 func (b *Builtins) Update(other *Builtins) {
@@ -85,7 +91,7 @@ func WithBuiltinSymbols(symbols []protocol.DocumentSymbol) AnalyzerOption {
 
 func WithStarlarkBuiltins() AnalyzerOption {
 	return func(analyzer *Analyzer) error {
-		builtins, err := LoadBuiltinsFromSource(analyzer.context, starlarkBuiltins, "builtins.py")
+		builtins, err := LoadBuiltinsFromSource(analyzer.context, StarlarkBuiltins, "builtins.py")
 		if err != nil {
 			return err
 		}
@@ -101,18 +107,10 @@ func WithStarlarkBuiltins() AnalyzerOption {
 	}
 }
 
-func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		return &Builtins{}, err
-	}
-	return LoadBuiltinsFromSource(ctx, contents, path)
-}
-
 func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (*Builtins, error) {
 	tree, err := query.Parse(ctx, contents)
 	if err != nil {
-		return &Builtins{}, fmt.Errorf("failed to parse %q: %v", path, err)
+		return nil, fmt.Errorf("failed to parse %q: %v", path, err)
 	}
 
 	functions := make(map[string]protocol.SignatureInformation)
@@ -123,7 +121,7 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 
 	for fn, sig := range docFunctions {
 		if _, ok := functions[fn]; ok {
-			return &Builtins{}, fmt.Errorf("duplicate function %q found in %q", fn, path)
+			return nil, fmt.Errorf("duplicate function %q found in %q", fn, path)
 		}
 		functions[fn] = sig
 	}
@@ -134,69 +132,145 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 	}, nil
 }
 
-func LoadBuiltinModule(ctx context.Context, dir string) (*Builtins, error) {
-	builtins := NewBuiltins()
-	entries, err := os.ReadDir(dir)
+func LoadBuiltinsFromFile(ctx context.Context, path string, f fs.FS) (*Builtins, error) {
+	var contents []byte
+	var err error
+	if f != nil {
+		contents, err = fs.ReadFile(f, path)
+	} else {
+		contents, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return LoadBuiltinsFromSource(ctx, contents, path)
+}
+
+func loadBuiltinModuleWalker(ctx context.Context, f fs.FS) (map[string]*Builtins, fs.WalkDirFunc) {
+	builtins := make(map[string]*Builtins)
+	return builtins, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		entryName := entry.Name()
+
+		if !entry.IsDir() && !strings.HasSuffix(entryName, ".py") {
+			return nil
+		}
+
+		modPath := path
+
+		if entry.IsDir() {
+			builtins[modPath] = NewBuiltins()
+			return nil
+		}
+
+		if entryName == "__init__.py" {
+			modPath = filepath.Dir(modPath)
+		} else {
+			modPath = path[:len(path)-len(".py")]
+		}
+
+		modBuiltins, err := LoadBuiltinsFromFile(ctx, path, f)
+		if err != nil {
+			return err
+		}
+
+		if b, ok := builtins[modPath]; ok {
+			b.Update(modBuiltins)
+		} else {
+			builtins[modPath] = modBuiltins
+		}
+		return nil
+	}
+}
+
+func LoadBuiltinModuleFS(ctx context.Context, f fs.FS, root string) (*Builtins, error) {
+	if root == "" {
+		root = "."
+	}
+
+	builtinsMap, walker := loadBuiltinModuleWalker(ctx, f)
+	err := fs.WalkDir(f, root, walker)
+
 	if err != nil {
 		return nil, err
 	}
 
-	for _, entry := range entries {
-		entryName := entry.Name()
+	modulePaths := make([]string, len(builtinsMap))
+	i := 0
+	for modPath := range builtinsMap {
+		modulePaths[i] = modPath
+		i++
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(modulePaths)))
 
-		if !entry.IsDir() && !strings.HasSuffix(entryName, ".py") {
+	for _, modPath := range modulePaths {
+		mod := builtinsMap[modPath]
+		if mod.IsEmpty() || modPath == root {
 			continue
 		}
 
-		if entryName == "__init__.py" {
-			initBuiltins, err := LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
-			if err != nil {
-				return nil, err
+		modName := filepath.Base(modPath)
+		parentModPath := filepath.Dir(modPath)
+		parentMod, ok := builtinsMap[parentModPath]
+		if !ok {
+			return nil, fmt.Errorf("no entry for parent %s", parentModPath)
+		}
+
+		copyBuiltinsToParent(mod, parentMod, modName)
+	}
+
+	builtins, ok := builtinsMap[root]
+	if !ok {
+		return nil, fmt.Errorf("no entry for root %s", root)
+	}
+	return builtins, nil
+}
+
+func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
+	for name, fn := range mod.Functions {
+		parentMod.Functions[modName+"."+name] = fn
+	}
+
+	children := []protocol.DocumentSymbol{}
+	for _, sym := range mod.Symbols {
+		var kind protocol.SymbolKind
+		switch sym.Kind {
+		case protocol.SymbolKindFunction:
+			kind = protocol.SymbolKindMethod
+		default:
+			kind = protocol.SymbolKindField
+		}
+		childSym := sym
+		childSym.Kind = kind
+		children = append(children, childSym)
+	}
+
+	if len(children) > 0 {
+		existingIndex := -1
+		for i, sym := range parentMod.Symbols {
+			if sym.Name == modName {
+				existingIndex = i
+				break
 			}
-			builtins.Update(initBuiltins)
-			continue
 		}
 
-		var modName string
-		var modBuiltins *Builtins
-		if entry.IsDir() {
-			modName = entryName
-			modBuiltins, err = LoadBuiltinModule(ctx, filepath.Join(dir, entryName))
+		if existingIndex >= 0 {
+			parentMod.Symbols[existingIndex].Children = append(parentMod.Symbols[existingIndex].Children, children...)
 		} else {
-			modName = entryName[:len(entryName)-len(".py")]
-			modBuiltins, err = LoadBuiltinsFromFile(ctx, filepath.Join(dir, entryName))
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		for name, fn := range modBuiltins.Functions {
-			builtins.Functions[modName+"."+name] = fn
-		}
-
-		children := []protocol.DocumentSymbol{}
-		for _, sym := range modBuiltins.Symbols {
-			var kind protocol.SymbolKind
-			switch sym.Kind {
-			case protocol.SymbolKindFunction:
-				kind = protocol.SymbolKindMethod
-			default:
-				kind = protocol.SymbolKindField
-			}
-			childSym := sym
-			childSym.Kind = kind
-			children = append(children, childSym)
-		}
-		if len(children) > 0 {
-			builtins.Symbols = append(builtins.Symbols, protocol.DocumentSymbol{
+			parentMod.Symbols = append(parentMod.Symbols, protocol.DocumentSymbol{
 				Name:     modName,
 				Kind:     protocol.SymbolKindVariable,
 				Children: children,
 			})
 		}
 	}
-	return builtins, nil
+}
+
+func LoadBuiltinModule(ctx context.Context, path string) (*Builtins, error) {
+	return LoadBuiltinModuleFS(ctx, os.DirFS(path), "")
 }
 
 func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
@@ -205,16 +279,16 @@ func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
 	for _, path := range filePaths {
 		fileInfo, err := os.Stat(path)
 		if err != nil {
-			return &Builtins{}, err
+			return nil, err
 		}
 		var result *Builtins
 		if fileInfo.IsDir() {
 			result, err = LoadBuiltinModule(ctx, path)
 		} else {
-			result, err = LoadBuiltinsFromFile(ctx, path)
+			result, err = LoadBuiltinsFromFile(ctx, path, nil)
 		}
 		if err != nil {
-			return &Builtins{}, err
+			return nil, err
 		}
 		builtins.Update(result)
 	}
