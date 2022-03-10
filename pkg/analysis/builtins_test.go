@@ -26,16 +26,38 @@ const envGetcwd = "environ = {}\ndef getcwd():\n  pass\n"
 //go:embed test/*.py
 var testFS embed.FS
 
+type testType int
+
+const (
+	testTypeFunctions testType = iota
+	testTypeSymbols
+)
+
 func TestLoadBuiltinsFromFile(t *testing.T) {
-	fixture := newFixture(t)
-	tests := []builtinTest{
-		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo", "bar"}},
-		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeSymbols, expectedSymbols: []string{"foo", "bar"}},
-		{code: "def foo():\n  def bar():\n    pass\n  pass\n", ttype: testTypeFunctions, expectedSymbols: []string{"foo"}},
-		{code: "foo = 1\n\ndef bar():\n  pass\n", ttype: testTypeSymbols, expectedSymbols: []string{"foo", "bar"}},
+	f := newFixture(t)
+	tests := []struct {
+		code     string
+		ttype    testType
+		expected []string
+	}{
+		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeFunctions, expected: []string{"foo", "bar"}},
+		{code: "def foo():\n    pass\ndef bar(a, **b):\n  pass\n", ttype: testTypeSymbols, expected: []string{"foo", "bar"}},
+		{code: "def foo():\n  def bar():\n    pass\n  pass\n", ttype: testTypeFunctions, expected: []string{"foo"}},
+		{code: "foo = 1\n\ndef bar():\n  pass\n", ttype: testTypeSymbols, expected: []string{"foo", "bar"}},
 	}
 	for i, test := range tests {
-		test.Run(fixture, strings.Join(test.expectedSymbols, "-")+"-"+strconv.Itoa(i))
+		t.Run(strings.Join(test.expected, "-")+"-"+strconv.Itoa(i), func(t *testing.T) {
+			name := fmt.Sprintf("test%x.py", sha1.Sum([]byte(test.code)))
+			path := f.File(name, test.code)
+			builtins, err := LoadBuiltinsFromFile(f.ctx, path, nil)
+			require.NoError(t, err)
+			switch test.ttype {
+			case testTypeFunctions:
+				assertContainsAll(t, test.expected, builtins.FunctionNames())
+			case testTypeSymbols:
+				assertContainsAll(t, test.expected, builtins.SymbolNames())
+			}
+		})
 	}
 }
 
@@ -175,19 +197,6 @@ type fixture struct {
 	doc      document.Document
 }
 
-type testType int
-
-const (
-	testTypeFunctions testType = iota
-	testTypeSymbols
-)
-
-type builtinTest struct {
-	code            string
-	ttype           testType
-	expectedSymbols []string
-}
-
 func assertContainsAll(t *testing.T, expected []string, actual []string) {
 	for _, exp := range expected {
 		found := false
@@ -201,22 +210,6 @@ func assertContainsAll(t *testing.T, expected []string, actual []string) {
 			assert.Fail(t, fmt.Sprintf("\"%s\" not found in %v", exp, actual))
 		}
 	}
-}
-
-func (b builtinTest) Run(f *fixture, name string) {
-
-	f.t.Run(name, func(t *testing.T) {
-		name := fmt.Sprintf("test%x.py", sha1.Sum([]byte(b.code)))
-		path := f.File(name, b.code)
-		builtins, err := LoadBuiltinsFromFile(f.ctx, path)
-		require.NoError(t, err)
-		switch b.ttype {
-		case testTypeFunctions:
-			assertContainsAll(t, b.expectedSymbols, builtins.FunctionNames())
-		case testTypeSymbols:
-			assertContainsAll(t, b.expectedSymbols, builtins.SymbolNames())
-		}
-	})
 }
 
 func (f *fixture) File(name, contents string) string {

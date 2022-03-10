@@ -107,14 +107,6 @@ func WithStarlarkBuiltins() AnalyzerOption {
 	}
 }
 
-func LoadBuiltinsFromFile(ctx context.Context, path string) (*Builtins, error) {
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return LoadBuiltinsFromSource(ctx, contents, path)
-}
-
 func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (*Builtins, error) {
 	tree, err := query.Parse(ctx, contents)
 	if err != nil {
@@ -140,8 +132,14 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 	}, nil
 }
 
-func LoadBuiltinsFromEntry(ctx context.Context, f fs.FS, path string, entry fs.DirEntry) (*Builtins, error) {
-	contents, err := fs.ReadFile(f, path)
+func LoadBuiltinsFromFile(ctx context.Context, path string, f fs.FS) (*Builtins, error) {
+	var contents []byte
+	var err error
+	if f != nil {
+		contents, err = fs.ReadFile(f, path)
+	} else {
+		contents, err = os.ReadFile(path)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +172,7 @@ func loadBuiltinModuleWalker(ctx context.Context, f fs.FS) (map[string]*Builtins
 			modPath = path[:len(path)-len(".py")]
 		}
 
-		modBuiltins, err := LoadBuiltinsFromEntry(ctx, f, path, entry)
+		modBuiltins, err := LoadBuiltinsFromFile(ctx, path, f)
 		if err != nil {
 			return err
 		}
@@ -287,7 +285,7 @@ func LoadBuiltins(ctx context.Context, filePaths []string) (*Builtins, error) {
 		if fileInfo.IsDir() {
 			result, err = LoadBuiltinModule(ctx, path)
 		} else {
-			result, err = LoadBuiltinsFromFile(ctx, path)
+			result, err = LoadBuiltinsFromFile(ctx, path, nil)
 		}
 		if err != nil {
 			return nil, err
