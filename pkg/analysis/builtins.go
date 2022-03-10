@@ -209,12 +209,8 @@ func LoadBuiltinModuleFS(ctx context.Context, f fs.FS, root string) (*Builtins, 
 	sort.Sort(sort.Reverse(sort.StringSlice(modulePaths)))
 
 	for _, modPath := range modulePaths {
-		b := builtinsMap[modPath]
-		if b.IsEmpty() {
-			continue
-		}
-
-		if modPath == root {
+		mod := builtinsMap[modPath]
+		if mod.IsEmpty() || modPath == root {
 			continue
 		}
 
@@ -225,42 +221,7 @@ func LoadBuiltinModuleFS(ctx context.Context, f fs.FS, root string) (*Builtins, 
 			return nil, fmt.Errorf("no entry for parent %s", parentModPath)
 		}
 
-		for name, fn := range b.Functions {
-			parentMod.Functions[modName+"."+name] = fn
-		}
-
-		children := []protocol.DocumentSymbol{}
-		for _, sym := range b.Symbols {
-			var kind protocol.SymbolKind
-			switch sym.Kind {
-			case protocol.SymbolKindFunction:
-				kind = protocol.SymbolKindMethod
-			default:
-				kind = protocol.SymbolKindField
-			}
-			childSym := sym
-			childSym.Kind = kind
-			children = append(children, childSym)
-		}
-		if len(children) > 0 {
-			existingIndex := -1
-			for i, sym := range parentMod.Symbols {
-				if sym.Name == modName {
-					existingIndex = i
-					break
-				}
-			}
-
-			if existingIndex >= 0 {
-				parentMod.Symbols[existingIndex].Children = append(parentMod.Symbols[existingIndex].Children, children...)
-			} else {
-				parentMod.Symbols = append(parentMod.Symbols, protocol.DocumentSymbol{
-					Name:     modName,
-					Kind:     protocol.SymbolKindVariable,
-					Children: children,
-				})
-			}
-		}
+		copyBuiltinsToParent(mod, parentMod, modName)
 	}
 
 	builtins, ok := builtinsMap[root]
@@ -268,6 +229,46 @@ func LoadBuiltinModuleFS(ctx context.Context, f fs.FS, root string) (*Builtins, 
 		return nil, fmt.Errorf("no entry for root %s", root)
 	}
 	return builtins, nil
+}
+
+func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
+	for name, fn := range mod.Functions {
+		parentMod.Functions[modName+"."+name] = fn
+	}
+
+	children := []protocol.DocumentSymbol{}
+	for _, sym := range mod.Symbols {
+		var kind protocol.SymbolKind
+		switch sym.Kind {
+		case protocol.SymbolKindFunction:
+			kind = protocol.SymbolKindMethod
+		default:
+			kind = protocol.SymbolKindField
+		}
+		childSym := sym
+		childSym.Kind = kind
+		children = append(children, childSym)
+	}
+
+	if len(children) > 0 {
+		existingIndex := -1
+		for i, sym := range parentMod.Symbols {
+			if sym.Name == modName {
+				existingIndex = i
+				break
+			}
+		}
+
+		if existingIndex >= 0 {
+			parentMod.Symbols[existingIndex].Children = append(parentMod.Symbols[existingIndex].Children, children...)
+		} else {
+			parentMod.Symbols = append(parentMod.Symbols, protocol.DocumentSymbol{
+				Name:     modName,
+				Kind:     protocol.SymbolKindVariable,
+				Children: children,
+			})
+		}
+	}
 }
 
 func LoadBuiltinModule(ctx context.Context, path string) (*Builtins, error) {
