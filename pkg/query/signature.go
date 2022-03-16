@@ -73,7 +73,7 @@ func extractSignatureInformation(doc document.Document, n *sitter.Node) (string,
 
 	if fnDocs.Description != "" {
 		sig.Documentation = protocol.MarkupContent{
-			Kind:  protocol.Markdown,
+			Kind:  protocol.PlainText,
 			Value: fnDocs.Description,
 		}
 	}

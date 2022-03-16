@@ -38,7 +38,7 @@ func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformat
 
 	if docContent != "" {
 		pi.Documentation = protocol.MarkupContent{
-			Kind:  protocol.Markdown,
+			Kind:  protocol.PlainText,
 			Value: docContent,
 		}
 	}
