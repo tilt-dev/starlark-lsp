@@ -46,6 +46,7 @@ type exampleTemplateParams struct {
 
 type BuiltinAnalyzerOptionProvider = func() analysis.AnalyzerOption
 type BuiltinFSProvider = func() fs.FS
+
 var builtinAnalyzerOption BuiltinAnalyzerOptionProvider = nil
 
 // creates a new startCmd

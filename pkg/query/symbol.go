@@ -28,10 +28,7 @@ func SiblingSymbols(doc document.Document, node, before *sitter.Node) []protocol
 				kind = protocol.SymbolKindVariable
 			}
 			symbol.Kind = kind
-			symbol.Range = protocol.Range{
-				Start: PointToPosition(n.StartPoint()),
-				End:   PointToPosition(n.EndPoint()),
-			}
+			symbol.Range = NodeRange(n)
 			// Look for possible docstring for the assigned variable
 			if n.NextNamedSibling() != nil && n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
 				if ch := n.NextNamedSibling().NamedChild(0); ch != nil && ch.Type() == NodeTypeString {
@@ -45,10 +42,7 @@ func SiblingSymbols(doc document.Document, node, before *sitter.Node) []protocol
 			symbol.Name = name
 			symbol.Kind = protocol.SymbolKindFunction
 			symbol.Detail = sigInfo.Label
-			symbol.Range = protocol.Range{
-				Start: PointToPosition(n.StartPoint()),
-				End:   PointToPosition(n.EndPoint()),
-			}
+			symbol.Range = NodeRange(n)
 		}
 
 		if symbol.Name != "" {
