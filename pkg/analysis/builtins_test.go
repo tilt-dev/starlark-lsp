@@ -65,7 +65,7 @@ func TestLoadBuiltinModule(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.File("api/os.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
@@ -103,7 +103,7 @@ func TestLoadBuiltinModuleInit(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.File("api/__init__.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"getcwd"}, builtins.FunctionNames())
@@ -115,7 +115,7 @@ func TestLoadBuiltinModuleDirectory(t *testing.T) {
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
 	fixture.File("api/os/__init__.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
@@ -135,7 +135,7 @@ func TestLoadBuiltinModuleEmptyDirectories(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
 	require.NoError(t, err)
 	assert.True(t, builtins.IsEmpty())
 }
@@ -146,7 +146,7 @@ func TestLoadBuiltinModuleMultipleModules(t *testing.T) {
 	fixture.Dir("api/os")
 	fixture.File("api/os.py", `name: str = ""`)
 	fixture.File("api/os/__init__.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
@@ -169,7 +169,7 @@ func TestLoadBuiltinModuleDirectoryFile(t *testing.T) {
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
 	fixture.File("api/os/fns.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir)
+	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.fns.getcwd"}, builtins.FunctionNames())

@@ -9,8 +9,8 @@ def make(target, deps=src_dirs, resource_deps=[], **kwargs):
     local_resource(target, cmd, deps=deps, resource_deps=resource_deps)
 
 builtins = []
-if os.path.exists('../tilt.build'):
-    builtins.append('../tilt.build/api/api')
+if os.path.exists('../tilt/internal/tiltfile/api'):
+    builtins.append('../tilt/internal/tiltfile/api')
 
 def lsp_args():
     args = ['--address=127.0.0.1:8760']
