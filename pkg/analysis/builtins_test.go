@@ -230,6 +230,13 @@ func (f *fixture) Symbols(names ...string) {
 	}
 }
 
+func (f *fixture) AddFunction(name string, content string) {
+	f.builtins.Functions[name] = protocol.SignatureInformation{
+		Label:         name,
+		Documentation: content,
+	}
+}
+
 func (f *fixture) Symbol(name string) protocol.DocumentSymbol {
 	return protocol.DocumentSymbol{
 		Name: name,

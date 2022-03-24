@@ -4,12 +4,13 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"go.lsp.dev/protocol"
 

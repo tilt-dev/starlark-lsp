@@ -15,11 +15,18 @@ func PositionToPoint(pos protocol.Position) sitter.Point {
 	}
 }
 
-// PointToPosition converts a Tree-sitter file location to an LSP protocol file location.
-func PointToPosition(point sitter.Point) protocol.Position {
+// pointToPosition converts a Tree-sitter file location to an LSP protocol file location.
+func pointToPosition(point sitter.Point) protocol.Position {
 	return protocol.Position{
 		Line:      point.Row,
 		Character: point.Column,
+	}
+}
+
+func NodeRange(node *sitter.Node) protocol.Range {
+	return protocol.Range{
+		Start: pointToPosition(node.StartPoint()),
+		End:   pointToPosition(node.EndPoint()),
 	}
 }
 
