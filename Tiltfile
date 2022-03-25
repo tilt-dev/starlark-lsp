@@ -8,18 +8,10 @@ def make(target, deps=src_dirs, resource_deps=[], **kwargs):
         target = '-'.join(target)
     local_resource(target, cmd, deps=deps, resource_deps=resource_deps)
 
-builtins = []
-if os.path.exists('../tilt/internal/tiltfile/api'):
-    builtins.append('../tilt/internal/tiltfile/api')
-
-def lsp_args():
-    args = ['--address=127.0.0.1:8760']
-    args.extend(['--builtin-paths='+b for b in builtins])
-    return ' '.join(args)
-
 local_resource(
     'run',
-    serve_cmd="go run ./cmd/starlark-lsp --debug --verbose start %s" % lsp_args(),
+    cmd="tilt dump api-docs",
+    serve_cmd="go run ./cmd/starlark-lsp --debug --verbose start --address=127.0.0.1:8760 --builtin-paths=api",
     deps=src_dirs
 )
 
