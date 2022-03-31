@@ -9,11 +9,10 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
 )
 
 // Functions finds all function definitions that are direct children of the provided sitter.Node.
-func Functions(doc document.Document, node *sitter.Node) map[string]protocol.SignatureInformation {
+func Functions(doc DocumentContent, node *sitter.Node) map[string]protocol.SignatureInformation {
 	signatures := make(map[string]protocol.SignatureInformation)
 
 	// N.B. we don't use a query here for a couple reasons:
@@ -36,7 +35,7 @@ func Functions(doc document.Document, node *sitter.Node) map[string]protocol.Sig
 }
 
 // Function finds a function definition for the given function name that is a direct child of the provided sitter.Node.
-func Function(doc document.Document, node *sitter.Node, fnName string) (protocol.SignatureInformation, bool) {
+func Function(doc DocumentContent, node *sitter.Node, fnName string) (protocol.SignatureInformation, bool) {
 	for n := node.NamedChild(0); n != nil; n = n.NextNamedSibling() {
 		if n.Type() != NodeTypeFunctionDef {
 			continue
@@ -50,7 +49,7 @@ func Function(doc document.Document, node *sitter.Node, fnName string) (protocol
 	return protocol.SignatureInformation{}, false
 }
 
-func extractSignatureInformation(doc document.Document, n *sitter.Node) (string, protocol.SignatureInformation) {
+func extractSignatureInformation(doc DocumentContent, n *sitter.Node) (string, protocol.SignatureInformation) {
 	if n.Type() != NodeTypeFunctionDef {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}
@@ -102,7 +101,7 @@ func signatureLabel(params []protocol.ParameterInformation, returnType string) s
 	return sb.String()
 }
 
-func extractDocstring(doc document.Document, n *sitter.Node) docstring.Parsed {
+func extractDocstring(doc DocumentContent, n *sitter.Node) docstring.Parsed {
 	if n.Type() != NodeTypeBlock {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}

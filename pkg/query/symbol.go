@@ -6,13 +6,11 @@ import (
 	"go.lsp.dev/protocol"
 
 	sitter "github.com/smacker/go-tree-sitter"
-
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
 )
 
 // Get all symbols defined at the same level as the given node.
 // If before != nil, only include symbols that appear before that node.
-func SiblingSymbols(doc document.Document, node, before *sitter.Node) []protocol.DocumentSymbol {
+func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
 	for n := node; n != nil && NodeBefore(n, before); n = n.NextNamedSibling() {
 		var symbol protocol.DocumentSymbol
@@ -53,7 +51,7 @@ func SiblingSymbols(doc document.Document, node, before *sitter.Node) []protocol
 }
 
 // Get all symbols defined in scopes at or above the level of the given node.
-func SymbolsInScope(doc document.Document, node *sitter.Node) []protocol.DocumentSymbol {
+func SymbolsInScope(doc DocumentContent, node *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
 	// While we are in the current scope, only include symbols defined before
 	// the provided node.
@@ -72,6 +70,6 @@ func SymbolsInScope(doc document.Document, node *sitter.Node) []protocol.Documen
 }
 
 // DocumentSymbols returns all symbols with document-wide visibility.
-func DocumentSymbols(doc document.Document) []protocol.DocumentSymbol {
+func DocumentSymbols(doc DocumentContent) []protocol.DocumentSymbol {
 	return SiblingSymbols(doc, doc.Tree().RootNode().NamedChild(0), nil)
 }
