@@ -86,31 +86,15 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 }
 
 func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
-	symbols := []protocol.DocumentSymbol{}
-	content := ""
-
+	var nodeAtPoint *sitter.Node
 	if len(nodes) > 0 {
-		nodeAtPoint := nodes[len(nodes)-1]
-		symbols = append(symbols, query.SymbolsInScope(doc, nodeAtPoint)...)
-		content = doc.ContentRange(sitter.Range{
-			StartByte: nodes[0].StartByte(),
-			EndByte:   nodes[len(nodes)-1].EndByte(),
-		})
-
-		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
-			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
-				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
-			}
-		}
-	} else {
-		content = doc.Content(doc.Tree().RootNode())
+		nodeAtPoint = nodes[len(nodes)-1]
 	}
-
-	symbols = append(symbols, a.builtins.Symbols...)
+	symbols := a.availableSymbols(doc, nodeAtPoint, pt)
 	identifiers := query.ExtractIdentifiers(doc, nodes, &pt)
 
 	a.logger.Debug("completion attempt",
-		zap.String("code", content),
+		zap.String("code", document.NodesToContent(doc, nodes)),
 		zap.Strings("nodes", func() []string {
 			types := make([]string, len(nodes))
 			for i, n := range nodes {
@@ -139,6 +123,22 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 		}
 	}
 
+	return symbols
+}
+
+func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
+	symbols := []protocol.DocumentSymbol{}
+	if nodeAtPoint != nil {
+		symbols = append(symbols, query.SymbolsInScope(doc, nodeAtPoint)...)
+
+		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
+			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
+				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
+			}
+		}
+	}
+
+	symbols = append(symbols, a.builtins.Symbols...)
 	return symbols
 }
 

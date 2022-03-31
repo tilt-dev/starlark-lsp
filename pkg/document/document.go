@@ -22,6 +22,19 @@ func NewDocument(input []byte, tree *sitter.Tree) Document {
 	}
 }
 
+func NodesToContent(doc Document, nodes []*sitter.Node) string {
+	var content string
+	if len(nodes) > 0 {
+		content = doc.ContentRange(sitter.Range{
+			StartByte: nodes[0].StartByte(),
+			EndByte:   nodes[len(nodes)-1].EndByte(),
+		})
+	} else {
+		content = doc.Content(doc.Tree().RootNode())
+	}
+	return content
+}
+
 type document struct {
 	// input is the file as it exists in the editor buffer.
 	input []byte
