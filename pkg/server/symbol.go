@@ -11,7 +11,7 @@ import (
 func (s *Server) DocumentSymbol(ctx context.Context,
 	params *protocol.DocumentSymbolParams) ([]interface{}, error) {
 
-	doc, err := s.docs.Read(params.TextDocument.URI)
+	doc, err := s.docs.Read(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err
 	}

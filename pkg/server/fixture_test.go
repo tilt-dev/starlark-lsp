@@ -23,7 +23,6 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
 	"github.com/tilt-dev/starlark-lsp/pkg/server"
 )
 
@@ -113,14 +112,17 @@ func newFixture(t testing.TB) *fixture {
 func (f *fixture) mustWriteDocument(path string, source string) {
 	f.t.Helper()
 	contents := []byte(source)
-	tree, err := query.Parse(f.ctx, contents)
-	require.NoErrorf(f.t, err, "Failed to parse document %q", path)
-	f.docManager.Write(uri.File(path), contents, tree)
+	require.NoErrorf(
+		f.t,
+		f.docManager.Write(f.ctx, uri.File(path), contents),
+		"Failed to parse document %q",
+		path,
+	)
 }
 
 func (f *fixture) requireDocContents(path string, input string) {
 	f.t.Helper()
-	doc, err := f.docManager.Read(uri.File(path))
+	doc, err := f.docManager.Read(f.ctx, uri.File(path))
 	require.NoErrorf(f.t, err, "Failed to read document %q", path)
 	defer doc.Close()
 	require.NotNil(f.t, doc.Tree(), "Document tree was nil")
