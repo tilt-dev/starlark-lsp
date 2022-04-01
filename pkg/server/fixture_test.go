@@ -259,6 +259,14 @@ func (t *testDocument) Tree() *sitter.Tree {
 	return t.doc.Tree()
 }
 
+func (t *testDocument) Functions() map[string]protocol.SignatureInformation {
+	return t.doc.Functions()
+}
+
+func (t *testDocument) Symbols() []protocol.DocumentSymbol {
+	return t.doc.Symbols()
+}
+
 func (t *testDocument) Copy() document.Document {
 	copiedDoc := &testDocument{
 		doc:     t.doc.Copy(),

@@ -61,6 +61,7 @@ func (m *Manager) Read(ctx context.Context, uri uri.URI) (Document, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if doc, ok := m.docs[uri]; ok {
+		// TODO(siegs): check staleness for files read from disk?
 		return doc.Copy(), nil
 	}
 

@@ -1,12 +1,19 @@
 package document
 
-import sitter "github.com/smacker/go-tree-sitter"
+import (
+	sitter "github.com/smacker/go-tree-sitter"
+	"go.lsp.dev/protocol"
+
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
+)
 
 type Document interface {
 	Content(n *sitter.Node) string
 	ContentRange(r sitter.Range) string
 
 	Tree() *sitter.Tree
+	Functions() map[string]protocol.SignatureInformation
+	Symbols() []protocol.DocumentSymbol
 
 	Copy() Document
 
@@ -16,10 +23,13 @@ type Document interface {
 type NewDocumentFunc func(input []byte, tree *sitter.Tree) Document
 
 func NewDocument(input []byte, tree *sitter.Tree) Document {
-	return document{
+	doc := document{
 		input: input,
 		tree:  tree,
 	}
+	doc.functions = query.Functions(doc, tree.RootNode())
+	doc.symbols = query.DocumentSymbols(doc)
+	return doc
 }
 
 func NodesToContent(doc Document, nodes []*sitter.Node) string {
@@ -41,6 +51,9 @@ type document struct {
 
 	// tree represents the parsed version of the document.
 	tree *sitter.Tree
+
+	functions map[string]protocol.SignatureInformation
+	symbols   []protocol.DocumentSymbol
 }
 
 var _ Document = document{}
@@ -57,6 +70,14 @@ func (d document) Tree() *sitter.Tree {
 	return d.tree
 }
 
+func (d document) Functions() map[string]protocol.SignatureInformation {
+	return d.functions
+}
+
+func (d document) Symbols() []protocol.DocumentSymbol {
+	return d.symbols
+}
+
 func (d document) Close() {
 	d.tree.Close()
 }
@@ -66,8 +87,14 @@ func (d document) Close() {
 // The Contents byte slice is returned as-is.
 // A shallow copy of the Tree is made, as Tree-sitter trees are not thread-safe.
 func (d document) Copy() Document {
-	return document{
-		input: d.input,
-		tree:  d.tree.Copy(),
+	doc := document{
+		input:     d.input,
+		tree:      d.tree.Copy(),
+		functions: make(map[string]protocol.SignatureInformation),
+		symbols:   append([]protocol.DocumentSymbol{}, d.symbols...),
 	}
+	for fn := range d.functions {
+		doc.functions[fn] = d.functions[fn]
+	}
+	return doc
 }
