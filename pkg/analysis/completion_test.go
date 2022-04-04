@@ -110,6 +110,7 @@ func TestCompletions(t *testing.T) {
 		{doc: `F`, char: 1, expected: []string{"False"}, builtin: true},
 		// inside function body
 		{doc: "def fn():\n  \nx = True", line: 1, char: 2, expected: []string{"fn", "os", "sys"}, osSys: true},
+		{doc: "def fn():\n  a = 1\n  \n  \b  b = 2\n  return b\nx = True", line: 2, char: 2, expected: []string{"a", "fn", "os", "sys", "x"}, osSys: true},
 		// inside a list
 		{doc: "x = [os.]", char: 8, expected: []string{"environ", "name"}, osSys: true},
 		// inside a binary expression

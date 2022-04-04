@@ -188,7 +188,7 @@ func newDocumentManager(t testing.TB) *document.Manager {
 
 	newDocFunc := func(input []byte, tree *sitter.Tree) document.Document {
 		testDoc := &testDocument{
-			doc:     document.NewDocument(input, tree),
+			doc:     document.NewDocumentWithSymbols(input, tree),
 			onCopy:  copyFunc,
 			onClose: closeFunc,
 		}

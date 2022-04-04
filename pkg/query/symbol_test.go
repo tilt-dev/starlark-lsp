@@ -71,7 +71,7 @@ def start():
 	for i, sym := range symbols {
 		names[i] = sym.Name
 	}
-	assert.Equal(t, []string{"bar", "baz", "foo", "start"}, names)
+	assert.Equal(t, []string{"bar", "baz"}, names)
 }
 
 func TestSymbolsInScopeExcludesFollowingSiblings(t *testing.T) {
@@ -96,5 +96,5 @@ def start():
 	for i, sym := range symbols {
 		names[i] = sym.Name
 	}
-	assert.Equal(t, []string{"bar", "baz", "foo", "start"}, names)
+	assert.Equal(t, []string{"bar", "baz"}, names)
 }

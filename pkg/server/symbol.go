@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"go.lsp.dev/protocol"
-
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 func (s *Server) DocumentSymbol(ctx context.Context,
@@ -17,7 +15,7 @@ func (s *Server) DocumentSymbol(ctx context.Context,
 	}
 	defer doc.Close()
 
-	symbols := query.DocumentSymbols(doc)
+	symbols := doc.Symbols()
 	result := make([]interface{}, len(symbols))
 	for i := range symbols {
 		result[i] = symbols[i]

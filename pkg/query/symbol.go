@@ -50,13 +50,25 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.D
 	return symbols
 }
 
-// Get all symbols defined in scopes at or above the level of the given node.
+// A node is in the scope of the top level module if there are no function
+// definitions in the ancestry of the node.
+func IsModuleScope(doc DocumentContent, node *sitter.Node) bool {
+	for n := node.Parent(); n != nil; n = n.Parent() {
+		if n.Type() == NodeTypeFunctionDef {
+			return false
+		}
+	}
+	return true
+}
+
+// Get all symbols defined in scopes at or above the level of the given node,
+// excluding symbols from the top-level module (document symbols).
 func SymbolsInScope(doc DocumentContent, node *sitter.Node) []protocol.DocumentSymbol {
 	var symbols []protocol.DocumentSymbol
 	// While we are in the current scope, only include symbols defined before
 	// the provided node.
 	before := node
-	for n := node; n.Parent() != nil; n = n.Parent() {
+	for n := node; n.Parent() != nil && !IsModuleScope(doc, n); n = n.Parent() {
 		// A function definition creates an enclosing scope, where all symbols
 		// in the parent scope are visible. After that point, don't specify a
 		// before node.
@@ -72,4 +84,19 @@ func SymbolsInScope(doc DocumentContent, node *sitter.Node) []protocol.DocumentS
 // DocumentSymbols returns all symbols with document-wide visibility.
 func DocumentSymbols(doc DocumentContent) []protocol.DocumentSymbol {
 	return SiblingSymbols(doc, doc.Tree().RootNode().NamedChild(0), nil)
+}
+
+// Returns only the symbols that occur before the node given if any, otherwise return all symbols.
+func SymbolsBefore(symbols []protocol.DocumentSymbol, before *sitter.Node) []protocol.DocumentSymbol {
+	if before == nil {
+		return symbols
+	}
+	result := []protocol.DocumentSymbol{}
+	for _, sym := range symbols {
+		symStart := PositionToPoint(sym.Range.Start)
+		if PointBefore(symStart, before.StartPoint()) {
+			result = append(result, sym)
+		}
+	}
+	return result
 }
