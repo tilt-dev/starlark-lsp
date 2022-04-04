@@ -21,6 +21,9 @@ type Manager struct {
 	docs        map[uri.URI]Document
 	newDocFunc  NewDocumentFunc
 	readDocFunc ReadDocumentFunc
+	// map of documents created during parsing; load statements in a file will
+	// trigger additional reads/parses and could create multiple documents.
+	parseState map[uri.URI]Document
 }
 
 func NewDocumentManager(opts ...ManagerOpt) *Manager {
@@ -43,6 +46,12 @@ func WithNewDocumentFunc(newDocFunc NewDocumentFunc) ManagerOpt {
 	}
 }
 
+func WithReadDocumentFunc(readDocFunc ReadDocumentFunc) ManagerOpt {
+	return func(manager *Manager) {
+		manager.readDocFunc = readDocFunc
+	}
+}
+
 func ReadDocument(u uri.URI) (contents []byte, err error) {
 	defer func() {
 		// recover from non-file URI in uri.Filename()
@@ -57,43 +66,43 @@ func ReadDocument(u uri.URI) (contents []byte, err error) {
 //
 // If no file exists at the path or the URI is of an invalid type, an error is
 // returned.
-func (m *Manager) Read(ctx context.Context, uri uri.URI) (Document, error) {
+func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	if doc, ok := m.docs[uri]; ok {
-		// TODO(siegs): check staleness for files read from disk?
-		return doc.Copy(), nil
+	defer func() {
+		if err == nil {
+			// Always return a copy of the document
+			doc = doc.Copy()
+		}
+		m.mu.Unlock()
+	}()
+
+	// TODO(siegs): check staleness for files read from disk?
+	var found bool
+	if doc, found = m.docs[u]; !found {
+		m.parseSetup()
+		doc, err = m.readAndParse(ctx, u)
+		m.parseCleanup(err)
 	}
 
-	contents, err := m.readDocFunc(uri)
-	if err == nil {
-		var tree *sitter.Tree
-		tree, err = query.Parse(ctx, contents)
-		if err == nil {
-			doc := m.newDocFunc(contents, tree)
-			m.docs[uri] = doc
-			return doc.Copy(), nil
-		}
-	}
 	if os.IsNotExist(err) {
 		err = os.ErrNotExist
 	}
 
-	return nil, err
+	return doc, err
 }
 
 // Write creates or replaces the contents of the file for the given URI.
-func (m *Manager) Write(ctx context.Context, uri uri.URI, input []byte) error {
+func (m *Manager) Write(ctx context.Context, uri uri.URI, input []byte) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.removeAndCleanup(uri)
-	tree, err := query.Parse(ctx, input)
+	m.parseSetup()
+	_, err = m.parse(ctx, uri, input)
+	m.parseCleanup(err)
 	if err != nil {
 		return fmt.Errorf("could not parse file %q: %v", uri, err)
 	}
-
-	m.docs[uri] = m.newDocFunc(input, tree)
-	return nil
+	return err
 }
 
 func (m *Manager) Remove(uri uri.URI) {
@@ -110,6 +119,40 @@ func (m *Manager) Keys() []uri.URI {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func (m *Manager) parseSetup() {
+	m.parseState = make(map[uri.URI]Document)
+}
+
+func (m *Manager) parseCleanup(err error) {
+	if err == nil {
+		for u, d := range m.parseState {
+			m.docs[u] = d
+		}
+	}
+	m.parseState = nil
+}
+
+func (m *Manager) readAndParse(ctx context.Context, u uri.URI) (doc Document, err error) {
+	var contents []byte
+	contents, err = m.readDocFunc(u)
+	if err != nil {
+		return nil, err
+	}
+	return m.parse(ctx, u, contents)
+}
+
+func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte) (doc Document, err error) {
+	if err == nil {
+		var tree *sitter.Tree
+		tree, err = query.Parse(ctx, input)
+		if err == nil {
+			doc = m.newDocFunc(input, tree)
+			m.parseState[uri] = doc
+		}
+	}
+	return doc, err
 }
 
 // removeAndCleanup removes a Document and frees associated resources.
