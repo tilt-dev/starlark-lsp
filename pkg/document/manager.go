@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
+	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
@@ -92,17 +93,17 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 }
 
 // Write creates or replaces the contents of the file for the given URI.
-func (m *Manager) Write(ctx context.Context, uri uri.URI, input []byte) (err error) {
+func (m *Manager) Write(ctx context.Context, uri uri.URI, input []byte) (diags []protocol.Diagnostic, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.removeAndCleanup(uri)
 	m.parseSetup()
-	_, err = m.parse(ctx, uri, input)
+	doc, err := m.parse(ctx, uri, input)
 	m.parseCleanup(err)
 	if err != nil {
-		return fmt.Errorf("could not parse file %q: %v", uri, err)
+		return nil, fmt.Errorf("could not parse file %q: %v", uri, err)
 	}
-	return err
+	return doc.Diagnostics(), err
 }
 
 func (m *Manager) Remove(uri uri.URI) {

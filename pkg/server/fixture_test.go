@@ -112,9 +112,10 @@ func newFixture(t testing.TB) *fixture {
 func (f *fixture) mustWriteDocument(path string, source string) {
 	f.t.Helper()
 	contents := []byte(source)
+	_, err := f.docManager.Write(f.ctx, uri.File(path), contents)
 	require.NoErrorf(
 		f.t,
-		f.docManager.Write(f.ctx, uri.File(path), contents),
+		err,
 		"Failed to parse document %q",
 		path,
 	)
@@ -265,6 +266,10 @@ func (t *testDocument) Functions() map[string]protocol.SignatureInformation {
 
 func (t *testDocument) Symbols() []protocol.DocumentSymbol {
 	return t.doc.Symbols()
+}
+
+func (t *testDocument) Diagnostics() []protocol.Diagnostic {
+	return t.doc.Diagnostics()
 }
 
 func (t *testDocument) Copy() document.Document {

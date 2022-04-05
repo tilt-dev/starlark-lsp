@@ -14,6 +14,7 @@ type Document interface {
 	Tree() *sitter.Tree
 	Functions() map[string]protocol.SignatureInformation
 	Symbols() []protocol.DocumentSymbol
+	Diagnostics() []protocol.Diagnostic
 
 	Copy() Document
 
@@ -59,8 +60,9 @@ type document struct {
 	// tree represents the parsed version of the document.
 	tree *sitter.Tree
 
-	functions map[string]protocol.SignatureInformation
-	symbols   []protocol.DocumentSymbol
+	functions   map[string]protocol.SignatureInformation
+	symbols     []protocol.DocumentSymbol
+	diagnostics []protocol.Diagnostic
 }
 
 var _ Document = document{}
@@ -83,6 +85,10 @@ func (d document) Functions() map[string]protocol.SignatureInformation {
 
 func (d document) Symbols() []protocol.DocumentSymbol {
 	return d.symbols
+}
+
+func (d document) Diagnostics() []protocol.Diagnostic {
+	return d.diagnostics
 }
 
 func (d document) Close() {
