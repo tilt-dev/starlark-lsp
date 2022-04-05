@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -54,13 +55,37 @@ func WithReadDocumentFunc(readDocFunc ReadDocumentFunc) ManagerOpt {
 }
 
 func ReadDocument(u uri.URI) (contents []byte, err error) {
+	fn, err := filename(u)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(fn)
+}
+
+func filename(u uri.URI) (fn string, err error) {
 	defer func() {
 		// recover from non-file URI in uri.Filename()
 		if r := recover(); r != nil {
 			err = r.(error)
 		}
 	}()
-	return os.ReadFile(u.Filename())
+	return u.Filename(), err
+}
+
+func tryCanonicalURI(u uri.URI) uri.URI {
+	fn, err := filename(u)
+	if err != nil {
+		return u
+	}
+	fn, err = filepath.EvalSymlinks(fn)
+	if err != nil {
+		return u
+	}
+	fn, err = filepath.Abs(fn)
+	if err != nil {
+		return u
+	}
+	return uri.File(fn)
 }
 
 // Read returns the contents of the file for the given URI.
@@ -76,6 +101,7 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 		}
 		m.mu.Unlock()
 	}()
+	u = tryCanonicalURI(u)
 
 	// TODO(siegs): check staleness for files read from disk?
 	var found bool
@@ -93,23 +119,25 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 }
 
 // Write creates or replaces the contents of the file for the given URI.
-func (m *Manager) Write(ctx context.Context, uri uri.URI, input []byte) (diags []protocol.Diagnostic, err error) {
+func (m *Manager) Write(ctx context.Context, u uri.URI, input []byte) (diags []protocol.Diagnostic, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.removeAndCleanup(uri)
+	u = tryCanonicalURI(u)
+	m.removeAndCleanup(u)
 	m.parseSetup()
-	doc, err := m.parse(ctx, uri, input)
+	doc, err := m.parse(ctx, u, input)
 	m.parseCleanup(err)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse file %q: %v", uri, err)
+		return nil, fmt.Errorf("could not parse file %q: %v", u, err)
 	}
 	return doc.Diagnostics(), err
 }
 
-func (m *Manager) Remove(uri uri.URI) {
+func (m *Manager) Remove(u uri.URI) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.removeAndCleanup(uri)
+	u = tryCanonicalURI(u)
+	m.removeAndCleanup(u)
 }
 
 func (m *Manager) Keys() []uri.URI {
@@ -137,6 +165,7 @@ func (m *Manager) parseCleanup(err error) {
 
 func (m *Manager) readAndParse(ctx context.Context, u uri.URI) (doc Document, err error) {
 	var contents []byte
+	u = tryCanonicalURI(u)
 	contents, err = m.readDocFunc(u)
 	if err != nil {
 		return nil, err
