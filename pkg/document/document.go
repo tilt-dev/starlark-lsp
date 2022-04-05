@@ -1,6 +1,8 @@
 package document
 
 import (
+	"context"
+
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
@@ -110,4 +112,8 @@ func (d document) Copy() Document {
 		doc.functions[fn] = d.functions[fn]
 	}
 	return doc
+}
+
+func (d document) processLoads(ctx context.Context, m *Manager) error {
+	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 
@@ -174,12 +173,15 @@ func (m *Manager) readAndParse(ctx context.Context, u uri.URI) (doc Document, er
 }
 
 func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte) (doc Document, err error) {
+	if _, found := m.parseState[uri]; found {
+		return nil, fmt.Errorf("circular load: %v", uri)
+	}
+	tree, err := query.Parse(ctx, input)
 	if err == nil {
-		var tree *sitter.Tree
-		tree, err = query.Parse(ctx, input)
-		if err == nil {
-			doc = m.newDocFunc(input, tree)
-			m.parseState[uri] = doc
+		doc = m.newDocFunc(input, tree)
+		m.parseState[uri] = doc
+		if docx, ok := doc.(document); ok {
+			err = docx.processLoads(ctx, m)
 		}
 	}
 	return doc, err
