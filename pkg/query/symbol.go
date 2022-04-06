@@ -21,7 +21,14 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.D
 				continue
 			}
 			symbol.Name = doc.Content(assignment.ChildByFieldName("left"))
-			kind := nodeTypeToSymbolKind(assignment.ChildByFieldName("right"))
+			val := assignment.ChildByFieldName("right")
+			if val == nil {
+				// python variable assignment without an initial value
+				// (https://peps.python.org/pep-0526/); this is not legal
+				// starlark so skip
+				continue
+			}
+			kind := nodeTypeToSymbolKind(val)
 			if kind == 0 {
 				kind = protocol.SymbolKindVariable
 			}
