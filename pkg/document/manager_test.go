@@ -34,7 +34,9 @@ func TestReadWithLoad(t *testing.T) {
 	assert.Equal(t, 0, len(doc.Diagnostics()))
 	syms := doc.Symbols()
 	assert.Equal(t, 1, len(syms))
-	//assert.Equal(t, "foo", syms[0].Name)
+	if len(syms) == 1 {
+		assert.Equal(t, "foo", syms[0].Name)
+	}
 }
 
 func TestNestedLoad(t *testing.T) {
