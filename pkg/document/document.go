@@ -16,7 +16,7 @@ import (
 
 type LoadStatement struct {
 	File        string
-	Vars        [][2]string
+	Symbols     [][2]string
 	Range       protocol.Range
 	Diagnostics []protocol.Diagnostic
 }
@@ -163,7 +163,7 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 		for _, s := range dep.Symbols() {
 			symMap[s.Name] = s
 		}
-		for _, v := range load.Vars {
+		for _, v := range load.Symbols {
 			if sym, found := symMap[v[1]]; found {
 				sym.Name = v[0]
 				sym.Range = load.Range
@@ -246,12 +246,12 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 			switch va.Type() {
 			case query.NodeTypeString:
 				s := unquote(va.Content(input))
-				load.Vars = append(load.Vars, [2]string{s, s})
+				load.Symbols = append(load.Symbols, [2]string{s, s})
 			case query.NodeTypeKeywordArgument:
 				alias := va.ChildByFieldName("name").Content(input)
 				nameNode := va.ChildByFieldName("value")
 				if nameNode.Type() == query.NodeTypeString {
-					load.Vars = append(load.Vars, [2]string{alias, unquote(nameNode.Content(input))})
+					load.Symbols = append(load.Symbols, [2]string{alias, unquote(nameNode.Content(input))})
 				} else {
 					diagnostics = append(diagnostics, notAString(nameNode))
 				}
@@ -263,7 +263,7 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 		diagnostics = append(diagnostics, protocol.Diagnostic{
 			Range:    query.NodeRange(n),
 			Severity: protocol.DiagnosticSeverityWarning,
-			Message:  "load statement did not specify any variables to import",
+			Message:  "load statement did not specify any symbols to import",
 		})
 	}
 	return load, diagnostics
