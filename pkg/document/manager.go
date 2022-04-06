@@ -178,7 +178,7 @@ func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte) (doc Doc
 	}
 	tree, err := query.Parse(ctx, input)
 	if err == nil {
-		doc = m.newDocFunc(input, tree)
+		doc = m.newDocFunc(uri, input, tree)
 		m.parseState[uri] = doc
 		if docx, ok := doc.(*document); ok {
 			docx.processLoads(ctx, m)

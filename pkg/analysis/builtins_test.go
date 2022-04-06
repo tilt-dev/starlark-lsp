@@ -246,7 +246,7 @@ func (f *fixture) Symbol(name string) protocol.DocumentSymbol {
 
 func (f *fixture) Document(content string) {
 	tree, _ := query.Parse(f.ctx, []byte(content))
-	doc := document.NewDocumentWithSymbols([]byte(content), tree)
+	doc := document.NewDocumentWithSymbols("", []byte(content), tree)
 	f.t.Cleanup(func() { doc.Close() })
 	f.doc = doc
 }

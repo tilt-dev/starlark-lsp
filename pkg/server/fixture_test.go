@@ -187,9 +187,9 @@ func newDocumentManager(t testing.TB) *document.Manager {
 		delete(openDocs, testDoc)
 	}
 
-	newDocFunc := func(input []byte, tree *sitter.Tree) document.Document {
+	newDocFunc := func(u uri.URI, input []byte, tree *sitter.Tree) document.Document {
 		testDoc := &testDocument{
-			doc:     document.NewDocumentWithSymbols(input, tree),
+			doc:     document.NewDocumentWithSymbols(u, input, tree),
 			onCopy:  copyFunc,
 			onClose: closeFunc,
 		}

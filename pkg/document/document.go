@@ -34,17 +34,19 @@ type Document interface {
 	Close()
 }
 
-type NewDocumentFunc func(input []byte, tree *sitter.Tree) Document
+type NewDocumentFunc func(u uri.URI, input []byte, tree *sitter.Tree) Document
 
-func NewDocument(input []byte, tree *sitter.Tree) Document {
+func NewDocument(u uri.URI, input []byte, tree *sitter.Tree) Document {
 	return &document{
+		uri:   u,
 		input: input,
 		tree:  tree,
 	}
 }
 
-func NewDocumentWithSymbols(input []byte, tree *sitter.Tree) Document {
+func NewDocumentWithSymbols(u uri.URI, input []byte, tree *sitter.Tree) Document {
 	doc := &document{
+		uri:   u,
 		input: input,
 		tree:  tree,
 	}
@@ -68,6 +70,8 @@ func NodesToContent(doc Document, nodes []*sitter.Node) string {
 }
 
 type document struct {
+	uri uri.URI
+
 	// input is the file as it exists in the editor buffer.
 	input []byte
 
@@ -120,6 +124,7 @@ func (d *document) Close() {
 // A shallow copy of the Tree is made, as Tree-sitter trees are not thread-safe.
 func (d *document) Copy() Document {
 	doc := &document{
+		uri:         d.uri,
 		input:       d.input,
 		tree:        d.tree.Copy(),
 		functions:   make(map[string]protocol.SignatureInformation),
