@@ -19,6 +19,7 @@ type ReadDocumentFunc func(uri.URI) ([]byte, error)
 // Manager provides simplified file read/write operations for the LSP server.
 type Manager struct {
 	mu          sync.Mutex
+	root        uri.URI
 	docs        map[uri.URI]Document
 	newDocFunc  NewDocumentFunc
 	readDocFunc ReadDocumentFunc
@@ -71,20 +72,36 @@ func filename(u uri.URI) (fn string, err error) {
 	return u.Filename(), err
 }
 
-func tryCanonicalURI(u uri.URI) uri.URI {
+func canonicalURI(u uri.URI, base uri.URI) uri.URI {
 	fn, err := filename(u)
 	if err != nil {
 		return u
+	}
+	if !filepath.IsAbs(fn) && base != "" {
+		basepath, err := filename(base)
+		if err != nil {
+			return u
+		}
+		fn = filepath.Join(basepath, fn)
 	}
 	fn, err = filepath.EvalSymlinks(fn)
 	if err != nil {
 		return u
 	}
-	fn, err = filepath.Abs(fn)
-	if err != nil {
-		return u
-	}
 	return uri.File(fn)
+}
+
+func (m *Manager) Initialize(params *protocol.InitializeParams) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(params.WorkspaceFolders) > 0 {
+		m.root = uri.URI(params.WorkspaceFolders[0].URI)
+	} else {
+		dir, err := os.Getwd()
+		if err == nil {
+			m.root = uri.File(dir)
+		}
+	}
 }
 
 // Read returns the contents of the file for the given URI.
@@ -100,7 +117,7 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 		}
 		m.mu.Unlock()
 	}()
-	u = tryCanonicalURI(u)
+	u = canonicalURI(u, m.root)
 
 	// TODO(siegs): check staleness for files read from disk?
 	var found bool
@@ -121,7 +138,7 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 func (m *Manager) Write(ctx context.Context, u uri.URI, input []byte) (diags []protocol.Diagnostic, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	u = tryCanonicalURI(u)
+	u = canonicalURI(u, m.root)
 	m.removeAndCleanup(u)
 	m.parseSetup()
 	doc, err := m.parse(ctx, u, input)
@@ -135,7 +152,7 @@ func (m *Manager) Write(ctx context.Context, u uri.URI, input []byte) (diags []p
 func (m *Manager) Remove(u uri.URI) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	u = tryCanonicalURI(u)
+	u = canonicalURI(u, m.root)
 	m.removeAndCleanup(u)
 }
 
@@ -164,7 +181,7 @@ func (m *Manager) parseCleanup(err error) {
 
 func (m *Manager) readAndParse(ctx context.Context, u uri.URI) (doc Document, err error) {
 	var contents []byte
-	u = tryCanonicalURI(u)
+	u = canonicalURI(u, m.root)
 	contents, err = m.readDocFunc(u)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package document
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -143,7 +144,11 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 		if load.File == "" {
 			continue
 		}
-		dep, err := m.readAndParse(ctx, uri.File(load.File))
+		var dep Document
+		path, err := resolvePath(load.File, d.uri)
+		if err == nil {
+			dep, err = m.readAndParse(ctx, uri.File(path))
+		}
 		if err != nil {
 			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
 				Range:    load.Range,
@@ -255,4 +260,19 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 func unquote(s string) string {
 	s, _ = strconv.Unquote(`"` + strings.Trim(s, s[0:1]) + `"`)
 	return s
+}
+
+// Resolve the given (possible relative) path from the parent directory of the
+// relativeTo URI.
+func resolvePath(path string, relativeTo uri.URI) (string, error) {
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+
+	relPath, err := filename(relativeTo)
+	if err != nil {
+		return "", err
+	}
+	relPath = filepath.Dir(relPath)
+	return filepath.Join(relPath, path), nil
 }
