@@ -22,6 +22,41 @@ func TestManagerRead(t *testing.T) {
 	assert.Equal(t, "", doc.Content(doc.Tree().RootNode()))
 }
 
+func TestReadWithLoad(t *testing.T) {
+	f := newFixture(t)
+	require.NoError(t, os.WriteFile("doc1", []byte(`load("doc2", "foo")`), 0644))
+	require.NoError(t, os.WriteFile("doc2", []byte(`foo = True`), 0644))
+	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(doc.Loads()))
+	assert.Equal(t, 0, len(doc.Diagnostics()))
+	syms := doc.Symbols()
+	assert.Equal(t, 1, len(syms))
+	//assert.Equal(t, "foo", syms[0].Name)
+}
+
+func TestNestedLoad(t *testing.T) {
+	f := newFixture(t)
+	code := `
+if True:
+  load("doc2", "foo")
+`
+	require.NoError(t, os.WriteFile("doc1", []byte(code), 0644))
+	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(doc.Symbols()))
+	assert.Equal(t, 1, len(doc.Diagnostics()))
+}
+
+func TestCircularLoad(t *testing.T) {
+	f := newFixture(t)
+	require.NoError(t, os.WriteFile("doc1", []byte(`load("doc2", "foo")`), 0644))
+	require.NoError(t, os.WriteFile("doc2", []byte(`load("doc1", "bar")`), 0644))
+	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(doc.Diagnostics()))
+}
+
 type fixture struct {
 	ctx context.Context
 	m   *Manager

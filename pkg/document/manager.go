@@ -180,8 +180,8 @@ func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte) (doc Doc
 	if err == nil {
 		doc = m.newDocFunc(input, tree)
 		m.parseState[uri] = doc
-		if docx, ok := doc.(document); ok {
-			err = docx.processLoads(ctx, m)
+		if docx, ok := doc.(*document); ok {
+			docx.processLoads(ctx, m)
 		}
 	}
 	return doc, err

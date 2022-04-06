@@ -2,12 +2,22 @@ package document
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
+	"go.lsp.dev/uri"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
+
+type LoadStatement struct {
+	File  string
+	Vars  [][2]string
+	Range protocol.Range
+}
 
 type Document interface {
 	Content(n *sitter.Node) string
@@ -17,6 +27,7 @@ type Document interface {
 	Functions() map[string]protocol.SignatureInformation
 	Symbols() []protocol.DocumentSymbol
 	Diagnostics() []protocol.Diagnostic
+	Loads() []LoadStatement
 
 	Copy() Document
 
@@ -26,19 +37,20 @@ type Document interface {
 type NewDocumentFunc func(input []byte, tree *sitter.Tree) Document
 
 func NewDocument(input []byte, tree *sitter.Tree) Document {
-	return document{
+	return &document{
 		input: input,
 		tree:  tree,
 	}
 }
 
 func NewDocumentWithSymbols(input []byte, tree *sitter.Tree) Document {
-	doc := document{
+	doc := &document{
 		input: input,
 		tree:  tree,
 	}
 	doc.functions = query.Functions(doc, tree.RootNode())
 	doc.symbols = query.DocumentSymbols(doc)
+	doc.parseLoadStatements()
 	return doc
 }
 
@@ -65,35 +77,40 @@ type document struct {
 	functions   map[string]protocol.SignatureInformation
 	symbols     []protocol.DocumentSymbol
 	diagnostics []protocol.Diagnostic
+	loads       []LoadStatement
 }
 
-var _ Document = document{}
+var _ Document = &document{}
 
-func (d document) Content(n *sitter.Node) string {
+func (d *document) Content(n *sitter.Node) string {
 	return n.Content(d.input)
 }
 
-func (d document) ContentRange(r sitter.Range) string {
+func (d *document) ContentRange(r sitter.Range) string {
 	return string(d.input[r.StartByte:r.EndByte])
 }
 
-func (d document) Tree() *sitter.Tree {
+func (d *document) Tree() *sitter.Tree {
 	return d.tree
 }
 
-func (d document) Functions() map[string]protocol.SignatureInformation {
+func (d *document) Functions() map[string]protocol.SignatureInformation {
 	return d.functions
 }
 
-func (d document) Symbols() []protocol.DocumentSymbol {
+func (d *document) Symbols() []protocol.DocumentSymbol {
 	return d.symbols
 }
 
-func (d document) Diagnostics() []protocol.Diagnostic {
+func (d *document) Diagnostics() []protocol.Diagnostic {
 	return d.diagnostics
 }
 
-func (d document) Close() {
+func (d *document) Loads() []LoadStatement {
+	return d.loads
+}
+
+func (d *document) Close() {
 	d.tree.Close()
 }
 
@@ -101,12 +118,14 @@ func (d document) Close() {
 //
 // The Contents byte slice is returned as-is.
 // A shallow copy of the Tree is made, as Tree-sitter trees are not thread-safe.
-func (d document) Copy() Document {
-	doc := document{
-		input:     d.input,
-		tree:      d.tree.Copy(),
-		functions: make(map[string]protocol.SignatureInformation),
-		symbols:   append([]protocol.DocumentSymbol{}, d.symbols...),
+func (d *document) Copy() Document {
+	doc := &document{
+		input:       d.input,
+		tree:        d.tree.Copy(),
+		functions:   make(map[string]protocol.SignatureInformation),
+		symbols:     append([]protocol.DocumentSymbol{}, d.symbols...),
+		loads:       append([]LoadStatement{}, d.loads...),
+		diagnostics: append([]protocol.Diagnostic{}, d.diagnostics...),
 	}
 	for fn := range d.functions {
 		doc.functions[fn] = d.functions[fn]
@@ -114,6 +133,121 @@ func (d document) Copy() Document {
 	return doc
 }
 
-func (d document) processLoads(ctx context.Context, m *Manager) error {
-	return nil
+func (d *document) processLoads(ctx context.Context, m *Manager) {
+	for _, load := range d.loads {
+		if load.File == "" {
+			continue
+		}
+		dep, err := m.readAndParse(ctx, uri.File(load.File))
+		if err != nil {
+			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
+				Range:    load.Range,
+				Severity: protocol.DiagnosticSeverityError,
+				Message:  err.Error(),
+			})
+			continue
+		}
+		fns := dep.Functions()
+		symMap := make(map[string]protocol.DocumentSymbol)
+		for _, s := range dep.Symbols() {
+			symMap[s.Name] = s
+		}
+		for _, v := range load.Vars {
+			if sym, found := symMap[v[1]]; found {
+				sym.Name = v[0]
+				sym.Range = load.Range
+				d.symbols = append(d.symbols, sym)
+				if sym.Kind == protocol.SymbolKindFunction {
+					if f, ok := fns[v[1]]; ok {
+						d.functions[v[0]] = f
+					}
+				}
+			} else {
+				d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
+					Range:    load.Range,
+					Severity: protocol.DiagnosticSeverityWarning,
+					Message:  fmt.Sprintf("symbol '%s' not found in %s", v[1], load.File),
+				})
+			}
+		}
+	}
+}
+
+func (d *document) parseLoadStatements() {
+	nodes := query.LoadStatements(d.input, d.tree)
+	for _, n := range nodes {
+		parent := n.Parent()
+		if parent != nil {
+			parent = parent.Parent()
+		}
+		// (expression_statement (call))
+		if parent == d.tree.RootNode() {
+			load, diagnostics := loadStatement(d.input, n)
+			d.loads = append(d.loads, load)
+			d.diagnostics = append(d.diagnostics, diagnostics...)
+		} else {
+			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
+				Range:    query.NodeRange(n),
+				Severity: protocol.DiagnosticSeverityError,
+				Message:  fmt.Sprintf("load statement not allowed in a %s", parent.Type()),
+			})
+		}
+	}
+}
+
+func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diagnostic) {
+	load := LoadStatement{Range: query.NodeRange(n)}
+	diagnostics := []protocol.Diagnostic{}
+	argsNode := n.ChildByFieldName("arguments")
+	notAString := func(nn *sitter.Node) protocol.Diagnostic {
+		return protocol.Diagnostic{
+			Range:    query.NodeRange(nn),
+			Severity: protocol.DiagnosticSeverityError,
+			Message:  fmt.Sprintf("load parameter must be a literal string, found '%s'", nn.Content(input)),
+		}
+	}
+	args := make([]*sitter.Node, argsNode.NamedChildCount())
+	for i := range args {
+		args[i] = argsNode.NamedChild(i)
+	}
+
+	if len(args) > 0 {
+		fileArg := args[0]
+		if fileArg.Type() == query.NodeTypeString {
+			load.File = unquote(fileArg.Content(input))
+		} else {
+			diagnostics = append(diagnostics, notAString(fileArg))
+		}
+	}
+
+	if len(args) > 1 {
+		for _, va := range args[1:] {
+			if va.Type() == query.NodeTypeString {
+				s := unquote(va.Content(input))
+				load.Vars = append(load.Vars, [2]string{s, s})
+			} else if va.Type() == query.NodeTypeKeywordArgument {
+				alias := va.ChildByFieldName("name").Content(input)
+				nameNode := va.ChildByFieldName("value")
+				if nameNode.Type() == query.NodeTypeString {
+					load.Vars = append(load.Vars, [2]string{alias, unquote(nameNode.Content(input))})
+				} else {
+					diagnostics = append(diagnostics, notAString(nameNode))
+				}
+			} else {
+				diagnostics = append(diagnostics, notAString(va))
+			}
+		}
+	} else {
+		diagnostics = append(diagnostics, protocol.Diagnostic{
+			Range:    query.NodeRange(n),
+			Severity: protocol.DiagnosticSeverityWarning,
+			Message:  "load statement did not specify any variables to import",
+		})
+	}
+	return load, diagnostics
+}
+
+func unquote(s string) string {
+	s, _ = strconv.Unquote(`"` + strings.Trim(s, s[0:1]) + `"`)
+	return s
 }

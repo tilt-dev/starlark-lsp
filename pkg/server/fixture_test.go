@@ -272,6 +272,10 @@ func (t *testDocument) Diagnostics() []protocol.Diagnostic {
 	return t.doc.Diagnostics()
 }
 
+func (t *testDocument) Loads() []document.LoadStatement {
+	return t.doc.Loads()
+}
+
 func (t *testDocument) Copy() document.Document {
 	copiedDoc := &testDocument{
 		doc:     t.doc.Copy(),
