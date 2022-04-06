@@ -187,10 +187,16 @@ func (d *document) parseLoadStatements() {
 	nodes := query.LoadStatements(d.input, d.tree)
 	for _, n := range nodes {
 		parent := n.Parent()
-		if parent != nil {
-			parent = parent.Parent()
+		for loop := true; loop && parent != nil; {
+			switch parent.Type() {
+			case query.NodeTypeBlock, query.NodeTypeExpressionStatement:
+				parent = parent.Parent()
+				// continue
+			default:
+				loop = false
+			}
 		}
-		// (expression_statement (call))
+
 		if parent == d.tree.RootNode() {
 			load, diagnostics := loadStatement(d.input, n)
 			d.loads = append(d.loads, load)
@@ -199,7 +205,7 @@ func (d *document) parseLoadStatements() {
 			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
 				Range:    query.NodeRange(n),
 				Severity: protocol.DiagnosticSeverityError,
-				Message:  fmt.Sprintf("load statement not allowed in a %s", parent.Type()),
+				Message:  fmt.Sprintf("load statement not allowed in %s", withArticle(strings.ReplaceAll(parent.Type(), "_", " "))),
 			})
 		}
 	}
@@ -275,4 +281,12 @@ func resolvePath(path string, relativeTo uri.URI) (string, error) {
 	}
 	relPath = filepath.Dir(relPath)
 	return filepath.Join(relPath, path), nil
+}
+
+func withArticle(s string) string {
+	article := "a"
+	if strings.ContainsAny(s[0:1], "aeiou") {
+		article = "an"
+	}
+	return fmt.Sprintf("%s %s", article, s)
 }

@@ -2,7 +2,9 @@ package document
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,16 +38,32 @@ func TestReadWithLoad(t *testing.T) {
 }
 
 func TestNestedLoad(t *testing.T) {
-	f := newFixture(t)
-	code := `
-if True:
-  load("doc2", "foo")
-`
-	require.NoError(t, os.WriteFile("doc1", []byte(code), 0644))
-	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(doc.Symbols()))
-	assert.Equal(t, 1, len(doc.Diagnostics()))
+	cases := []struct {
+		code     string
+		expected string
+	}{
+		{code: `if True:
+  %s
+`, expected: "if statement"},
+		{code: "x = %s", expected: "assignment"},
+		{code: "x = lambda: %s", expected: "lambda"},
+		{code: `def fn():
+  %s`, expected: "function definition"},
+	}
+
+	for i, tt := range cases {
+		t.Run(fmt.Sprintf("%s-%d", tt.expected, i), func(t *testing.T) {
+			f := newFixture(t)
+			require.NoError(t, os.WriteFile("doc1", []byte(fmt.Sprintf(tt.code, `load("doc2","foo")`)), 0644))
+			doc, err := f.m.Read(f.ctx, uri.File("doc1"))
+			require.NoError(t, err)
+			diags := doc.Diagnostics()
+			assert.Equal(t, 1, len(diags))
+			if len(diags) == 1 {
+				assert.True(t, strings.HasSuffix(doc.Diagnostics()[0].Message, tt.expected))
+			}
+		})
+	}
 }
 
 func TestCircularLoad(t *testing.T) {

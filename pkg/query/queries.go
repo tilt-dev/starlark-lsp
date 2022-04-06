@@ -38,7 +38,7 @@ func LeafNodes(node *sitter.Node) []*sitter.Node {
 
 func LoadStatements(input []byte, tree *sitter.Tree) []*sitter.Node {
 	nodes := []*sitter.Node{}
-	Query(tree.RootNode(), []byte(`(expression_statement (call) @call)`), func(q *sitter.Query, match *sitter.QueryMatch) bool {
+	Query(tree.RootNode(), []byte(`(call) @call`), func(q *sitter.Query, match *sitter.QueryMatch) bool {
 		for _, c := range match.Captures {
 			id := c.Node.ChildByFieldName("function")
 			name := id.Content(input)
