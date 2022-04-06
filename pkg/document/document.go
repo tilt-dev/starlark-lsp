@@ -185,13 +185,13 @@ func (d *document) parseLoadStatements() {
 	nodes := query.LoadStatements(d.input, d.tree)
 	for _, n := range nodes {
 		parent := n.Parent()
-		for loop := true; loop && parent != nil; {
+	parentloop:
+		for parent != nil {
 			switch parent.Type() {
 			case query.NodeTypeBlock, query.NodeTypeExpressionStatement:
 				parent = parent.Parent()
-				// continue
 			default:
-				loop = false
+				break parentloop
 			}
 		}
 
@@ -236,10 +236,11 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 
 	if len(args) > 1 {
 		for _, va := range args[1:] {
-			if va.Type() == query.NodeTypeString {
+			switch va.Type() {
+			case query.NodeTypeString:
 				s := unquote(va.Content(input))
 				load.Vars = append(load.Vars, [2]string{s, s})
-			} else if va.Type() == query.NodeTypeKeywordArgument {
+			case query.NodeTypeKeywordArgument:
 				alias := va.ChildByFieldName("name").Content(input)
 				nameNode := va.ChildByFieldName("value")
 				if nameNode.Type() == query.NodeTypeString {
@@ -247,7 +248,7 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 				} else {
 					diagnostics = append(diagnostics, notAString(nameNode))
 				}
-			} else {
+			default:
 				diagnostics = append(diagnostics, notAString(va))
 			}
 		}
