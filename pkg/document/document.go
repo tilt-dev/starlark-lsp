@@ -15,9 +15,10 @@ import (
 )
 
 type LoadStatement struct {
-	File  string
-	Vars  [][2]string
-	Range protocol.Range
+	File        string
+	Vars        [][2]string
+	Range       protocol.Range
+	Diagnostics []protocol.Diagnostic
 }
 
 type Document interface {
@@ -140,7 +141,7 @@ func (d *document) Copy() Document {
 }
 
 func (d *document) processLoads(ctx context.Context, m *Manager) {
-	for _, load := range d.loads {
+	for i, load := range d.loads {
 		if load.File == "" {
 			continue
 		}
@@ -150,7 +151,7 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 			dep, err = m.readAndParse(ctx, uri.File(path))
 		}
 		if err != nil {
-			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
+			d.loads[i].Diagnostics = append(d.loads[i].Diagnostics, protocol.Diagnostic{
 				Range:    load.Range,
 				Severity: protocol.DiagnosticSeverityError,
 				Message:  err.Error(),
@@ -176,6 +177,12 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 					Severity: protocol.DiagnosticSeverityWarning,
 					Message:  fmt.Sprintf("symbol '%s' not found in %s", v[1], load.File),
 				})
+			}
+		}
+		for _, depload := range dep.Loads() {
+			for _, diag := range depload.Diagnostics {
+				diag.Range = load.Range
+				d.diagnostics = append(d.diagnostics, diag)
 			}
 		}
 	}

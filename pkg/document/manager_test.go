@@ -68,11 +68,22 @@ func TestNestedLoad(t *testing.T) {
 
 func TestCircularLoad(t *testing.T) {
 	f := newFixture(t)
-	require.NoError(t, os.WriteFile("doc1", []byte(`load("doc2", "foo")`), 0644))
-	require.NoError(t, os.WriteFile("doc2", []byte(`load("doc1", "bar")`), 0644))
+	require.NoError(t, os.WriteFile("doc1", []byte(`
+load("doc2", "foo")
+bar = True
+`), 0644))
+	require.NoError(t, os.WriteFile("doc2", []byte(`
+load("doc1", "bar")
+foo = True
+`), 0644))
 	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(doc.Diagnostics()))
+	diags := doc.Diagnostics()
+	assert.Equal(t, 1, len(diags))
+	if len(diags) == 1 {
+		assert.True(t, strings.Contains(diags[0].Message, "circular load"),
+			"message was: %s", diags[0].Message)
+	}
 }
 
 type fixture struct {
