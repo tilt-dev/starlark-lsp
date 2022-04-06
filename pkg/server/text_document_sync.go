@@ -38,12 +38,12 @@ func (s *Server) DidClose(_ context.Context, params *protocol.DidCloseTextDocume
 }
 
 func (s *Server) publishDiagnostics(ctx context.Context, textDoc protocol.VersionedTextDocumentIdentifier, diags []protocol.Diagnostic) error {
-	if len(diags) > 0 {
-		return s.notifier.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-			URI:         textDoc.URI,
-			Version:     uint32(textDoc.Version),
-			Diagnostics: diags,
-		})
+	if diags == nil {
+		diags = []protocol.Diagnostic{}
 	}
-	return nil
+	return s.notifier.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+		URI:         textDoc.URI,
+		Version:     uint32(textDoc.Version),
+		Diagnostics: diags,
+	})
 }
