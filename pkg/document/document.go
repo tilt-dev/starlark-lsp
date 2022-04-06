@@ -167,10 +167,8 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 				sym.Name = v[0]
 				sym.Range = load.Range
 				d.symbols = append(d.symbols, sym)
-				if sym.Kind == protocol.SymbolKindFunction {
-					if f, ok := fns[v[1]]; ok {
-						d.functions[v[0]] = f
-					}
+				if f, ok := fns[v[1]]; ok {
+					d.functions[v[0]] = f
 				}
 			} else {
 				d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
