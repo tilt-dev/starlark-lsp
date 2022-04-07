@@ -108,15 +108,7 @@ func extractDocstring(doc DocumentContent, n *sitter.Node) docstring.Parsed {
 
 	if exprNode := n.NamedChild(0); exprNode != nil && exprNode.Type() == NodeTypeExpressionStatement {
 		if docStringNode := exprNode.NamedChild(0); docStringNode != nil && docStringNode.Type() == NodeTypeString {
-			// TODO(milas): need to do nested quote un-escaping (generally
-			// 	docstrings use triple-quoted strings so this isn't a huge
-			// 	issue at least)
-			rawDocString := doc.Content(docStringNode)
-			// this is the raw source, so it will be wrapped with with """ / ''' / " / '
-			// (technically this could trim off too much but not worth the
-			// headache to deal with valid leading/trailing quotes)
-			rawDocString = strings.Trim(rawDocString, `"'`)
-			return docstring.Parse(rawDocString)
+			return docstring.Parse(Unquote(doc.Input(), docStringNode))
 		}
 	}
 

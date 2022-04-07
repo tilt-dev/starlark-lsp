@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -22,6 +21,7 @@ type LoadStatement struct {
 }
 
 type Document interface {
+	Input() []byte
 	Content(n *sitter.Node) string
 	ContentRange(r sitter.Range) string
 
@@ -87,6 +87,10 @@ type document struct {
 }
 
 var _ Document = &document{}
+
+func (d *document) Input() []byte {
+	return d.input
+}
 
 func (d *document) Content(n *sitter.Node) string {
 	return n.Content(d.input)
@@ -235,7 +239,7 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 	if len(args) > 0 {
 		fileArg := args[0]
 		if fileArg.Type() == query.NodeTypeString {
-			load.File = unquote(fileArg.Content(input))
+			load.File = query.Unquote(input, fileArg)
 		} else {
 			diagnostics = append(diagnostics, notAString(fileArg))
 		}
@@ -245,13 +249,13 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 		for _, va := range args[1:] {
 			switch va.Type() {
 			case query.NodeTypeString:
-				s := unquote(va.Content(input))
+				s := query.Unquote(input, va)
 				load.Symbols = append(load.Symbols, [2]string{s, s})
 			case query.NodeTypeKeywordArgument:
 				alias := va.ChildByFieldName("name").Content(input)
 				nameNode := va.ChildByFieldName("value")
 				if nameNode.Type() == query.NodeTypeString {
-					load.Symbols = append(load.Symbols, [2]string{alias, unquote(nameNode.Content(input))})
+					load.Symbols = append(load.Symbols, [2]string{alias, query.Unquote(input, nameNode)})
 				} else {
 					diagnostics = append(diagnostics, notAString(nameNode))
 				}
@@ -267,11 +271,6 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 		})
 	}
 	return load, diagnostics
-}
-
-func unquote(s string) string {
-	s, _ = strconv.Unquote(`"` + strings.Trim(s, s[0:1]) + `"`)
-	return s
 }
 
 // Resolve the given (possible relative) path from the parent directory of the

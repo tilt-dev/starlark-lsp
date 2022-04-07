@@ -248,6 +248,10 @@ type testDocument struct {
 
 var _ document.Document = &testDocument{}
 
+func (t *testDocument) Input() []byte {
+	return t.doc.Input()
+}
+
 func (t *testDocument) Content(n *sitter.Node) string {
 	return t.doc.Content(n)
 }

@@ -5,6 +5,7 @@ import (
 )
 
 type DocumentContent interface {
+	Input() []byte
 	Content(n *sitter.Node) string
 	ContentRange(r sitter.Range) string
 	Tree() *sitter.Tree
