@@ -39,6 +39,19 @@ func TestReadWithLoad(t *testing.T) {
 	}
 }
 
+func TestReadWithUnsupportedURI(t *testing.T) {
+	f := newFixture(t)
+	require.NoError(t, os.WriteFile("doc", []byte(`load("ext://doc2", "foo")`), 0644))
+	doc, err := f.m.Read(f.ctx, uri.File("doc"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(doc.Loads()))
+	diags := doc.Diagnostics()
+	assert.Equal(t, 1, len(diags))
+	if len(diags) == 1 {
+		assert.Equal(t, "only file URIs are supported, got ext", diags[0].Message)
+	}
+}
+
 func TestNestedLoad(t *testing.T) {
 	cases := []struct {
 		code     string
@@ -86,6 +99,18 @@ foo = True
 		assert.True(t, strings.Contains(diags[0].Message, "circular load"),
 			"message was: %s", diags[0].Message)
 	}
+}
+
+func TestURIfilename(t *testing.T) {
+	var fn string
+	var err error
+	fn, err = filename(uri.URI("file:///mod"))
+	require.NoError(t, err)
+	assert.Equal(t, "/mod", fn)
+	fn, err = filename(uri.URI("ext://mod"))
+	require.Error(t, err)
+	assert.Equal(t, "", fn)
+	assert.Equal(t, "only file URIs are supported, got ext", err.Error())
 }
 
 type fixture struct {

@@ -3,6 +3,7 @@ package document
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -149,17 +150,19 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 		if load.File == "" {
 			continue
 		}
-		var dep Document
 		path, err := resolvePath(load.File, d.uri)
+		var dep Document
 		if err == nil {
-			dep, err = m.readAndParse(ctx, uri.File(path))
+			dep, err = m.readAndParse(ctx, path)
 		}
 		if err != nil {
-			d.loads[i].Diagnostics = append(d.loads[i].Diagnostics, protocol.Diagnostic{
+			diag := protocol.Diagnostic{
 				Range:    load.Range,
 				Severity: protocol.DiagnosticSeverityError,
 				Message:  err.Error(),
-			})
+			}
+			d.loads[i].Diagnostics = append(d.loads[i].Diagnostics, diag)
+			d.diagnostics = append(d.diagnostics, diag)
 			continue
 		}
 		fns := dep.Functions()
@@ -275,9 +278,27 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 
 // Resolve the given (possible relative) path from the parent directory of the
 // relativeTo URI.
-func resolvePath(path string, relativeTo uri.URI) (string, error) {
+func resolvePath(path string, relativeTo uri.URI) (uri.URI, error) {
+	var err error
+	if strings.Contains(path, "://") {
+		var url *url.URL
+		url, err = url.Parse(path)
+		if err == nil {
+			if url.Scheme != "file" {
+				// The provided ReadDocumentFunc must handle this scheme
+				return uri.URI(path), nil
+			} else {
+				path = filepath.FromSlash(url.Path)
+			}
+		}
+	}
+
+	if err != nil {
+		return "", err
+	}
+
 	if filepath.IsAbs(path) {
-		return path, nil
+		return uri.File(path), nil
 	}
 
 	relPath, err := filename(relativeTo)
@@ -285,7 +306,7 @@ func resolvePath(path string, relativeTo uri.URI) (string, error) {
 		return "", err
 	}
 	relPath = filepath.Dir(relPath)
-	return filepath.Join(relPath, path), nil
+	return uri.File(filepath.Join(relPath, path)), nil
 }
 
 func withArticle(s string) string {
