@@ -32,6 +32,9 @@ func TestUnquote(t *testing.T) {
 		{`"he\001llo"`, "he\001llo"},
 		{`"hello\
 world"`, "helloworld"},
+		{`"hello\n\n"`, "hello\n\n"},
+		{`"\n\t\v\b"`, "\n\t\v\b"},
+		{`""`, ""},
 	}
 	for i, tt := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
