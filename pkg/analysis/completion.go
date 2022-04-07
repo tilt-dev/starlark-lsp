@@ -128,8 +128,10 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 
 // Returns a list of available symbols for completion as follows:
 // - If in a function argument list, include keyword args for that function
-// - Add symbols in scope for the node at point
-// - Add document symbols, excluding symbols after the node if the node is in the module scope
+// - Add symbols in scope for the node at point, excluding symbols at the module
+//   level (document symbols), because the document already has those computed
+// - Add document symbols, but only symbols defined before the node at point if the node
+//   is in the module scope (not inside a function).
 // - Add builtins
 func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
 	symbols := []protocol.DocumentSymbol{}
