@@ -15,22 +15,20 @@ import (
 
 type ManagerOpt func(manager *Manager)
 type ReadDocumentFunc func(uri.URI) ([]byte, error)
+type DocumentMap map[uri.URI]Document
 
 // Manager provides simplified file read/write operations for the LSP server.
 type Manager struct {
 	mu          sync.Mutex
 	root        uri.URI
-	docs        map[uri.URI]Document
+	docs        DocumentMap
 	newDocFunc  NewDocumentFunc
 	readDocFunc ReadDocumentFunc
-	// map of documents created during parsing; load statements in a file will
-	// trigger additional reads/parses and could create multiple documents.
-	parseState map[uri.URI]Document
 }
 
 func NewDocumentManager(opts ...ManagerOpt) *Manager {
 	m := Manager{
-		docs:        make(map[uri.URI]Document),
+		docs:        make(DocumentMap),
 		newDocFunc:  NewDocumentWithSymbols,
 		readDocFunc: ReadDocument,
 	}
@@ -125,9 +123,7 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 	// TODO(siegs): check staleness for files read from disk?
 	var found bool
 	if doc, found = m.docs[u]; !found {
-		m.parseSetup()
-		doc, err = m.readAndParse(ctx, u)
-		m.parseCleanup(err)
+		doc, err = m.readAndParse(ctx, u, nil)
 	}
 
 	if os.IsNotExist(err) {
@@ -143,9 +139,7 @@ func (m *Manager) Write(ctx context.Context, u uri.URI, input []byte) (diags []p
 	defer m.mu.Unlock()
 	u = canonicalFileURI(u, m.root)
 	m.removeAndCleanup(u)
-	m.parseSetup()
-	doc, err := m.parse(ctx, u, input)
-	m.parseCleanup(err)
+	doc, err := m.parse(ctx, u, input, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse file %q: %v", u, err)
 	}
@@ -169,39 +163,37 @@ func (m *Manager) Keys() []uri.URI {
 	return keys
 }
 
-func (m *Manager) parseSetup() {
-	m.parseState = make(map[uri.URI]Document)
-}
-
-func (m *Manager) parseCleanup(err error) {
-	if err == nil {
-		for u, d := range m.parseState {
-			m.docs[u] = d
-		}
-	}
-	m.parseState = nil
-}
-
-func (m *Manager) readAndParse(ctx context.Context, u uri.URI) (doc Document, err error) {
+func (m *Manager) readAndParse(ctx context.Context, u uri.URI, parseState DocumentMap) (doc Document, err error) {
 	var contents []byte
 	u = canonicalFileURI(u, m.root)
 	contents, err = m.readDocFunc(u)
 	if err != nil {
 		return nil, err
 	}
-	return m.parse(ctx, u, contents)
+	return m.parse(ctx, u, contents, parseState)
 }
 
-func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte) (doc Document, err error) {
-	if _, found := m.parseState[uri]; found {
+func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte, parseState DocumentMap) (doc Document, err error) {
+	cleanup := false
+	if parseState == nil {
+		parseState = make(DocumentMap)
+		cleanup = true
+	}
+
+	if _, found := parseState[uri]; found {
 		return nil, fmt.Errorf("circular load: %v", uri)
 	}
 	tree, err := query.Parse(ctx, input)
 	if err == nil {
 		doc = m.newDocFunc(uri, input, tree)
-		m.parseState[uri] = doc
+		parseState[uri] = doc
 		if docx, ok := doc.(*document); ok {
-			docx.processLoads(ctx, m)
+			docx.processLoads(ctx, m, parseState)
+		}
+	}
+	if cleanup {
+		for u, d := range parseState {
+			m.docs[u] = d
 		}
 	}
 	return doc, err

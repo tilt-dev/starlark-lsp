@@ -149,7 +149,7 @@ func (d *document) Copy() Document {
 
 // Follow (evaulate) the parsed load statements and assign symbols, functions
 // and diagnostics discovered from parsing the dependent document.
-func (d *document) processLoads(ctx context.Context, m *Manager) {
+func (d *document) processLoads(ctx context.Context, m *Manager, parseState DocumentMap) {
 	for i, load := range d.loads {
 		if load.File == "" {
 			continue
@@ -157,7 +157,7 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 		path, err := resolvePath(load.File, d.uri)
 		var dep Document
 		if err == nil {
-			dep, err = m.readAndParse(ctx, path)
+			dep, err = m.readAndParse(ctx, path, parseState)
 		}
 		if err != nil {
 			diag := protocol.Diagnostic{
