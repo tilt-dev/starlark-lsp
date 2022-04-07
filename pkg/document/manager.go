@@ -29,7 +29,7 @@ type Manager struct {
 func NewDocumentManager(opts ...ManagerOpt) *Manager {
 	m := Manager{
 		docs:        make(DocumentMap),
-		newDocFunc:  NewDocumentWithSymbols,
+		newDocFunc:  NewDocument,
 		readDocFunc: ReadDocument,
 	}
 

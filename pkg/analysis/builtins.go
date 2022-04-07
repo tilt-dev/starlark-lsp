@@ -116,7 +116,7 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 	}
 
 	functions := make(map[string]protocol.SignatureInformation)
-	doc := document.NewDocumentWithSymbols(uri.File(path), contents, tree)
+	doc := document.NewDocument(uri.File(path), contents, tree)
 	docFunctions := doc.Functions()
 	symbols := doc.Symbols()
 	doc.Close()

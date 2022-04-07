@@ -40,14 +40,6 @@ type Document interface {
 type NewDocumentFunc func(u uri.URI, input []byte, tree *sitter.Tree) Document
 
 func NewDocument(u uri.URI, input []byte, tree *sitter.Tree) Document {
-	return &document{
-		uri:   u,
-		input: input,
-		tree:  tree,
-	}
-}
-
-func NewDocumentWithSymbols(u uri.URI, input []byte, tree *sitter.Tree) Document {
 	doc := &document{
 		uri:   u,
 		input: input,
