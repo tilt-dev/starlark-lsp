@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"strconv"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -10,7 +11,8 @@ import (
 // Unquote a Tree sitter string node into its string contents.
 //
 // Also accepts a parent module, block or expression statement containing a
-// string node for convenience.
+// string node for convenience. If a non-string node is passed, Unquote will
+// panic().
 //
 // Tree sitter parses a string literal into 2 or more child nodes
 // representing the beginning/ending delimiters, and any number of escape
@@ -43,7 +45,7 @@ done:
 		case NodeTypeString:
 			break done
 		default:
-			return ""
+			panic(fmt.Errorf("[Unquote:bug:unexpected node: %s: %s]", n.Type(), n.Content(input)))
 		}
 	}
 

@@ -11,7 +11,6 @@ import (
 
 func TestUnquote(t *testing.T) {
 	cases := [][2]string{
-		{`hello`, ""},
 		{`"hello"`, "hello"},
 		{`r"hello"`, "hello"},
 		{`r"he\nllo"`, "he\\nllo"},
@@ -39,9 +38,18 @@ world"`, "helloworld"},
 	for i, tt := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			q := newQueryFixture(t, nil, tt[0])
-			n := q.root.NamedChild(0)
-			v := query.Unquote(q.input, n)
+			v := query.Unquote(q.input, q.root)
 			assert.Equal(t, tt[1], v)
 		})
 	}
+}
+
+func TestUnquotePanic(t *testing.T) {
+	q := newQueryFixture(t, nil, `hello`)
+	defer func() {
+		e := recover().(error)
+		assert.NotNil(t, e)
+		assert.Equal(t, "[Unquote:bug:unexpected node: identifier: hello]", e.Error())
+	}()
+	query.Unquote(q.input, q.root)
 }
