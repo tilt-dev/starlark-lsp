@@ -54,6 +54,9 @@ func WithReadDocumentFunc(readDocFunc ReadDocumentFunc) ManagerOpt {
 	}
 }
 
+// Read the document from the given URI and return its contents. This default
+// implementation of a ReadDocumentFunc only handles file: URIs and returns an
+// error otherwise.
 func ReadDocument(u uri.URI) (contents []byte, err error) {
 	fn, err := filename(u)
 	if err != nil {
@@ -72,7 +75,7 @@ func filename(u uri.URI) (fn string, err error) {
 	return u.Filename(), err
 }
 
-func canonicalURI(u uri.URI, base uri.URI) uri.URI {
+func canonicalFileURI(u uri.URI, base uri.URI) uri.URI {
 	fn, err := filename(u)
 	if err != nil {
 		return u
@@ -117,7 +120,7 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 		}
 		m.mu.Unlock()
 	}()
-	u = canonicalURI(u, m.root)
+	u = canonicalFileURI(u, m.root)
 
 	// TODO(siegs): check staleness for files read from disk?
 	var found bool
@@ -138,7 +141,7 @@ func (m *Manager) Read(ctx context.Context, u uri.URI) (doc Document, err error)
 func (m *Manager) Write(ctx context.Context, u uri.URI, input []byte) (diags []protocol.Diagnostic, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	u = canonicalURI(u, m.root)
+	u = canonicalFileURI(u, m.root)
 	m.removeAndCleanup(u)
 	m.parseSetup()
 	doc, err := m.parse(ctx, u, input)
@@ -152,7 +155,7 @@ func (m *Manager) Write(ctx context.Context, u uri.URI, input []byte) (diags []p
 func (m *Manager) Remove(u uri.URI) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	u = canonicalURI(u, m.root)
+	u = canonicalFileURI(u, m.root)
 	m.removeAndCleanup(u)
 }
 
@@ -181,7 +184,7 @@ func (m *Manager) parseCleanup(err error) {
 
 func (m *Manager) readAndParse(ctx context.Context, u uri.URI) (doc Document, err error) {
 	var contents []byte
-	u = canonicalURI(u, m.root)
+	u = canonicalFileURI(u, m.root)
 	contents, err = m.readDocFunc(u)
 	if err != nil {
 		return nil, err

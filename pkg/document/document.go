@@ -59,6 +59,8 @@ func NewDocumentWithSymbols(u uri.URI, input []byte, tree *sitter.Tree) Document
 	return doc
 }
 
+// Returns the source content for the (assumed neighboring) nodes. If slice is
+// nil or empty, return the entire document.
 func NodesToContent(doc Document, nodes []*sitter.Node) string {
 	var content string
 	if len(nodes) > 0 {
@@ -145,6 +147,8 @@ func (d *document) Copy() Document {
 	return doc
 }
 
+// Follow (evaulate) the parsed load statements and assign symbols, functions
+// and diagnostics discovered from parsing the dependent document.
 func (d *document) processLoads(ctx context.Context, m *Manager) {
 	for i, load := range d.loads {
 		if load.File == "" {
@@ -195,6 +199,7 @@ func (d *document) processLoads(ctx context.Context, m *Manager) {
 	}
 }
 
+// Parse (but do not evaluate) load statements in the document.
 func (d *document) parseLoadStatements() {
 	nodes := query.LoadStatements(d.input, d.tree)
 	for _, n := range nodes {
