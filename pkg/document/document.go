@@ -236,7 +236,7 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 		return protocol.Diagnostic{
 			Range:    query.NodeRange(nn),
 			Severity: protocol.DiagnosticSeverityError,
-			Message:  fmt.Sprintf("load parameter must be a literal string, found '%s'", nn.Content(input)),
+			Message:  fmt.Sprintf("load parameter must be a string literal, found '%s'", nn.Content(input)),
 		}
 	}
 	args := make([]*sitter.Node, argsNode.NamedChildCount())
