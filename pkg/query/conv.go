@@ -35,8 +35,8 @@ done:
 		}
 		escseq := string(input[escape.StartByte():escape.EndByte()])
 		if escseq == "\\\n" {
-			// ignore backslash at the end of a line per Starlark spec
-			escseq = "\n"
+			// ignore backslash-newline line continuation at the end of a line per Starlark spec
+			escseq = ""
 		} else {
 			// use Go Unquote to expand the escape sequence
 			escseq, _ = strconv.Unquote(`"` + escseq + `"`)
