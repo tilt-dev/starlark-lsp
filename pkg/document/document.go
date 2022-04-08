@@ -14,9 +14,14 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
+type LoadSymbol struct {
+	Alias, Name string
+	Range       protocol.Range
+}
+
 type LoadStatement struct {
 	File        string
-	Symbols     [][2]string
+	Symbols     []LoadSymbol
 	Range       protocol.Range
 	Diagnostics []protocol.Diagnostic
 }
@@ -166,19 +171,19 @@ func (d *document) processLoads(ctx context.Context, m *Manager, parseState Docu
 		for _, s := range dep.Symbols() {
 			symMap[s.Name] = s
 		}
-		for _, v := range load.Symbols {
-			if sym, found := symMap[v[1]]; found {
-				sym.Name = v[0]
-				sym.Range = load.Range
+		for _, ls := range load.Symbols {
+			if sym, found := symMap[ls.Name]; found {
+				sym.Name = ls.Alias
+				sym.Range = ls.Range
 				d.symbols = append(d.symbols, sym)
-				if f, ok := fns[v[1]]; ok {
-					d.functions[v[0]] = f
+				if f, ok := fns[ls.Name]; ok {
+					d.functions[ls.Alias] = f
 				}
 			} else {
 				d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
-					Range:    load.Range,
+					Range:    ls.Range,
 					Severity: protocol.DiagnosticSeverityWarning,
-					Message:  fmt.Sprintf("symbol '%s' not found in %s", v[1], load.File),
+					Message:  fmt.Sprintf("symbol '%s' not found in %s", ls.Name, load.File),
 				})
 			}
 		}
@@ -250,12 +255,20 @@ func loadStatement(input []byte, n *sitter.Node) (LoadStatement, []protocol.Diag
 			switch va.Type() {
 			case query.NodeTypeString:
 				s := query.Unquote(input, va)
-				load.Symbols = append(load.Symbols, [2]string{s, s})
+				load.Symbols = append(load.Symbols, LoadSymbol{
+					Alias: s,
+					Name:  s,
+					Range: query.NodeRange(va),
+				})
 			case query.NodeTypeKeywordArgument:
 				alias := va.ChildByFieldName("name").Content(input)
 				nameNode := va.ChildByFieldName("value")
 				if nameNode.Type() == query.NodeTypeString {
-					load.Symbols = append(load.Symbols, [2]string{alias, query.Unquote(input, nameNode)})
+					load.Symbols = append(load.Symbols, LoadSymbol{
+						Alias: alias,
+						Name:  query.Unquote(input, nameNode),
+						Range: query.NodeRange(va),
+					})
 				} else {
 					diagnostics = append(diagnostics, notAString(nameNode))
 				}
