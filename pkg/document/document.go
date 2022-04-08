@@ -24,6 +24,7 @@ type LoadStatement struct {
 	Symbols     []LoadSymbol
 	Range       protocol.Range
 	Diagnostics []protocol.Diagnostic
+	processed   bool
 }
 
 type Document interface {
@@ -146,7 +147,7 @@ func (d *document) Copy() Document {
 
 // Follow (evaulate) the parsed load statements and assign symbols, functions
 // and diagnostics discovered from parsing the dependent document.
-func (d *document) processLoads(ctx context.Context, m *Manager, parseState DocumentMap) {
+func (d *document) followLoads(ctx context.Context, m *Manager, parseState DocumentMap) {
 	for i, load := range d.loads {
 		if load.File == "" {
 			continue
@@ -166,32 +167,39 @@ func (d *document) processLoads(ctx context.Context, m *Manager, parseState Docu
 			d.diagnostics = append(d.diagnostics, diag)
 			continue
 		}
-		fns := dep.Functions()
-		symMap := make(map[string]protocol.DocumentSymbol)
-		for _, s := range dep.Symbols() {
-			symMap[s.Name] = s
+		if !load.processed {
+			d.processLoad(dep, load)
+			d.loads[i].processed = true
 		}
-		for _, ls := range load.Symbols {
-			if sym, found := symMap[ls.Name]; found {
-				sym.Name = ls.Alias
-				sym.Range = ls.Range
-				d.symbols = append(d.symbols, sym)
-				if f, ok := fns[ls.Name]; ok {
-					d.functions[ls.Alias] = f
-				}
-			} else {
-				d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
-					Range:    ls.Range,
-					Severity: protocol.DiagnosticSeverityWarning,
-					Message:  fmt.Sprintf("symbol '%s' not found in %s", ls.Name, load.File),
-				})
+	}
+}
+
+func (d *document) processLoad(dep Document, load LoadStatement) {
+	fns := dep.Functions()
+	symMap := make(map[string]protocol.DocumentSymbol)
+	for _, s := range dep.Symbols() {
+		symMap[s.Name] = s
+	}
+	for _, ls := range load.Symbols {
+		if sym, found := symMap[ls.Name]; found {
+			sym.Name = ls.Alias
+			sym.Range = ls.Range
+			d.symbols = append(d.symbols, sym)
+			if f, ok := fns[ls.Name]; ok {
+				d.functions[ls.Alias] = f
 			}
+		} else {
+			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
+				Range:    ls.Range,
+				Severity: protocol.DiagnosticSeverityWarning,
+				Message:  fmt.Sprintf("symbol '%s' not found in %s", ls.Name, load.File),
+			})
 		}
-		for _, depload := range dep.Loads() {
-			for _, diag := range depload.Diagnostics {
-				diag.Range = load.Range
-				d.diagnostics = append(d.diagnostics, diag)
-			}
+	}
+	for _, depload := range dep.Loads() {
+		for _, diag := range depload.Diagnostics {
+			diag.Range = load.Range
+			d.diagnostics = append(d.diagnostics, diag)
 		}
 	}
 }

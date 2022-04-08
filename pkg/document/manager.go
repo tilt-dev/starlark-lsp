@@ -166,9 +166,11 @@ func (m *Manager) Keys() []uri.URI {
 func (m *Manager) readAndParse(ctx context.Context, u uri.URI, parseState DocumentMap) (doc Document, err error) {
 	var contents []byte
 	u = canonicalFileURI(u, m.root)
-	contents, err = m.readDocFunc(u)
-	if err != nil {
-		return nil, err
+	if _, found := m.docs[u]; !found {
+		contents, err = m.readDocFunc(u)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return m.parse(ctx, u, contents, parseState)
 }
@@ -180,17 +182,25 @@ func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte, parseSta
 		cleanup = true
 	}
 
-	if _, found := parseState[uri]; found {
+	if _, parsed := parseState[uri]; parsed {
 		return nil, fmt.Errorf("circular load: %v", uri)
 	}
-	tree, err := query.Parse(ctx, input)
-	if err == nil {
-		doc = m.newDocFunc(uri, input, tree)
-		parseState[uri] = doc
-		if docx, ok := doc.(*document); ok {
-			docx.processLoads(ctx, m, parseState)
+
+	doc, loaded := m.docs[uri]
+	if !loaded {
+		tree, err := query.Parse(ctx, input)
+		if err != nil {
+			return nil, err
 		}
+
+		doc = m.newDocFunc(uri, input, tree)
 	}
+
+	parseState[uri] = doc
+	if docx, ok := doc.(*document); ok {
+		docx.followLoads(ctx, m, parseState)
+	}
+
 	if cleanup {
 		for u, d := range parseState {
 			m.docs[u] = d
