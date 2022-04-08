@@ -130,12 +130,10 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 // - If in a function argument list, include keyword args for that function
 // - Add symbols in scope for the node at point, excluding symbols at the module
 //   level (document symbols), because the document already has those computed
-// - Add document symbols, but only symbols defined before the node at point if the node
-//   is in the module scope (not inside a function).
+// - Add document symbols
 // - Add builtins
 func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
 	symbols := []protocol.DocumentSymbol{}
-	var moduleNode *sitter.Node
 	if nodeAtPoint != nil {
 		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
 			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
@@ -143,12 +141,8 @@ func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.N
 			}
 		}
 		symbols = append(symbols, query.SymbolsInScope(doc, nodeAtPoint)...)
-		if query.IsModuleScope(doc, nodeAtPoint) {
-			moduleNode = nodeAtPoint
-		}
 	}
-	docAndBuiltin := query.SymbolsBefore(doc.Symbols(), moduleNode)
-	docAndBuiltin = append(docAndBuiltin, a.builtins.Symbols...)
+	docAndBuiltin := append(doc.Symbols(), a.builtins.Symbols...)
 	for _, sym := range docAndBuiltin {
 		found := false
 		for _, s := range symbols {

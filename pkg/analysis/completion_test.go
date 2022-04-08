@@ -60,10 +60,8 @@ def f2():
 
 # <- position 1
 
-#^- position 3
-
 if True:
-    # position 4
+    # position 3
 	pass
 
 t = 1234
@@ -91,13 +89,11 @@ func TestCompletions(t *testing.T) {
 		{doc: "os.e", char: 4, expected: []string{"environ"}, osSys: true},
 
 		// position 1
-		{doc: docWithMultiplePlaces, line: 10, expected: []string{"f1", "s", "f2", "os", "sys"}, osSys: true},
+		{doc: docWithMultiplePlaces, line: 10, expected: []string{"f1", "s", "f2", "t", "os", "sys"}, osSys: true},
 		// position 2
 		{doc: docWithMultiplePlaces, line: 7, char: 4, expected: []string{"f1", "s", "f2", "t", "os", "sys"}, osSys: true},
 		// position 3
-		{doc: docWithMultiplePlaces, line: 11, expected: []string{"f1", "s", "f2", "os", "sys"}, osSys: true},
-		// position 4
-		{doc: docWithMultiplePlaces, line: 15, char: 4, expected: []string{"f1", "s", "f2", "os", "sys"}, osSys: true},
+		{doc: docWithMultiplePlaces, line: 13, char: 4, expected: []string{"f1", "s", "f2", "t", "os", "sys"}, osSys: true},
 		{doc: docWithErrorNode, line: 4, char: 1, expected: []string{"foo"}, osSys: true},
 		// inside string
 		{doc: `f = "abc123"`, char: 5, expected: []string{}, osSys: true},
@@ -109,7 +105,7 @@ func TestCompletions(t *testing.T) {
 		{doc: `T`, char: 1, expected: []string{"True"}, builtin: true},
 		{doc: `F`, char: 1, expected: []string{"False"}, builtin: true},
 		// inside function body
-		{doc: "def fn():\n  \nx = True", line: 1, char: 2, expected: []string{"fn", "os", "sys"}, osSys: true},
+		{doc: "def fn():\n  \nx = True", line: 1, char: 2, expected: []string{"fn", "x", "os", "sys"}, osSys: true},
 		{doc: "def fn():\n  a = 1\n  \n  \b  b = 2\n  return b\nx = True", line: 2, char: 2, expected: []string{"a", "fn", "os", "sys", "x"}, osSys: true},
 		// inside a list
 		{doc: "x = [os.]", char: 8, expected: []string{"environ", "name"}, osSys: true},
