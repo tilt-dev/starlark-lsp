@@ -163,8 +163,20 @@ func (d *document) followLoads(ctx context.Context, m *Manager, parseState Docum
 				Severity: protocol.DiagnosticSeverityError,
 				Message:  err.Error(),
 			}
-			d.loads[i].Diagnostics = append(d.loads[i].Diagnostics, diag)
-			d.diagnostics = append(d.diagnostics, diag)
+
+			// When doc is cached in memory, the diagnostic could have been
+			// added previously. Avoid duplicates.
+			exists := false
+			for _, d := range load.Diagnostics {
+				if diag.Range == d.Range && diag.Message == d.Message {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				d.loads[i].Diagnostics = append(d.loads[i].Diagnostics, diag)
+				d.diagnostics = append(d.diagnostics, diag)
+			}
 			continue
 		}
 		if !load.processed {
