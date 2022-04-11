@@ -48,13 +48,14 @@ type BuiltinAnalyzerOptionProvider = func() analysis.AnalyzerOption
 type BuiltinFSProvider = func() fs.FS
 
 var builtinAnalyzerOption BuiltinAnalyzerOptionProvider = nil
+var providedManagerOptions []document.ManagerOpt
 
 // creates a new startCmd
 // params:
 //   commandName: what to call the base command in examples (e.g., "starlark-lsp", "tilt lsp")
 //   builtinFSProvider: provides an fs.FS from which tilt builtin docs should be read
 //                      if nil, a --builtin-paths param will be added for specifying paths
-func newStartCmd(baseCommandName string, builtinFSProvider BuiltinFSProvider) *startCmd {
+func newStartCmd(baseCommandName string, builtinFSProvider BuiltinFSProvider, managerOpts ...document.ManagerOpt) *startCmd {
 	cmd := startCmd{
 		Command: &cobra.Command{
 			Use:   "start",
@@ -82,6 +83,8 @@ For socket mode, pass the --address option.
 			return analysis.WithBuiltins(builtinFSProvider())
 		}
 	}
+
+	providedManagerOptions = managerOpts
 
 	var example bytes.Buffer
 	p := exampleTemplateParams{
@@ -179,7 +182,7 @@ func initializeConn(conn io.ReadWriteCloser, logger *zap.Logger) (jsonrpc2.Conn,
 }
 
 func createHandler(cancel context.CancelFunc, notifier protocol.Client, analyzer *analysis.Analyzer) jsonrpc2.Handler {
-	docManager := document.NewDocumentManager()
+	docManager := document.NewDocumentManager(providedManagerOptions...)
 	s := server.NewServer(cancel, notifier, docManager, analyzer)
 	h := s.Handler(server.StandardMiddleware...)
 	return h
