@@ -23,7 +23,6 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
 	"github.com/tilt-dev/starlark-lsp/pkg/server"
 )
 
@@ -113,14 +112,18 @@ func newFixture(t testing.TB) *fixture {
 func (f *fixture) mustWriteDocument(path string, source string) {
 	f.t.Helper()
 	contents := []byte(source)
-	tree, err := query.Parse(f.ctx, contents)
-	require.NoErrorf(f.t, err, "Failed to parse document %q", path)
-	f.docManager.Write(uri.File(path), contents, tree)
+	_, err := f.docManager.Write(f.ctx, uri.File(path), contents)
+	require.NoErrorf(
+		f.t,
+		err,
+		"Failed to parse document %q",
+		path,
+	)
 }
 
 func (f *fixture) requireDocContents(path string, input string) {
 	f.t.Helper()
-	doc, err := f.docManager.Read(uri.File(path))
+	doc, err := f.docManager.Read(f.ctx, uri.File(path))
 	require.NoErrorf(f.t, err, "Failed to read document %q", path)
 	defer doc.Close()
 	require.NotNil(f.t, doc.Tree(), "Document tree was nil")
@@ -184,9 +187,9 @@ func newDocumentManager(t testing.TB) *document.Manager {
 		delete(openDocs, testDoc)
 	}
 
-	newDocFunc := func(input []byte, tree *sitter.Tree) document.Document {
+	newDocFunc := func(u uri.URI, input []byte, tree *sitter.Tree) document.Document {
 		testDoc := &testDocument{
-			doc:     document.NewDocument(input, tree),
+			doc:     document.NewDocument(u, input, tree),
 			onCopy:  copyFunc,
 			onClose: closeFunc,
 		}
@@ -245,6 +248,10 @@ type testDocument struct {
 
 var _ document.Document = &testDocument{}
 
+func (t *testDocument) Input() []byte {
+	return t.doc.Input()
+}
+
 func (t *testDocument) Content(n *sitter.Node) string {
 	return t.doc.Content(n)
 }
@@ -255,6 +262,22 @@ func (t *testDocument) ContentRange(r sitter.Range) string {
 
 func (t *testDocument) Tree() *sitter.Tree {
 	return t.doc.Tree()
+}
+
+func (t *testDocument) Functions() map[string]protocol.SignatureInformation {
+	return t.doc.Functions()
+}
+
+func (t *testDocument) Symbols() []protocol.DocumentSymbol {
+	return t.doc.Symbols()
+}
+
+func (t *testDocument) Diagnostics() []protocol.Diagnostic {
+	return t.doc.Diagnostics()
+}
+
+func (t *testDocument) Loads() []document.LoadStatement {
+	return t.doc.Loads()
 }
 
 func (t *testDocument) Copy() document.Document {

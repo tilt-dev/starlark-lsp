@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -74,7 +75,7 @@ func TestServer_DidClose(t *testing.T) {
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri.File("./test.star")},
 	}, &resp)
 
-	doc, err := f.docManager.Read(uri.File("./test.star"))
-	require.EqualError(t, err, "file does not exist", "Document should no longer exist")
+	doc, err := f.docManager.Read(f.ctx, uri.File("./test.star"))
+	require.ErrorIs(t, os.ErrNotExist, err, "file does not exist", "Document should no longer exist")
 	require.Zero(t, doc, "Document was not zero-value")
 }

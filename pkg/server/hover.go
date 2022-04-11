@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Server) Hover(ctx context.Context, params *protocol.HoverParams) (result *protocol.Hover, err error) {
-	doc, err := s.docs.Read(params.TextDocument.URI)
+	doc, err := s.docs.Read(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err
 	}

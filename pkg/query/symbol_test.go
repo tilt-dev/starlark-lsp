@@ -17,7 +17,7 @@ y = None
 z = True
 `)
 
-	doc := document.NewDocument(f.input, f.tree)
+	doc := document.NewDocument("", f.input, f.tree)
 	symbols := query.DocumentSymbols(doc)
 	names := make([]string, len(symbols))
 	for i, sym := range symbols {
@@ -39,7 +39,7 @@ def start():
   pass
 `)
 
-	doc := document.NewDocument(f.input, f.tree)
+	doc := document.NewDocument("", f.input, f.tree)
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SiblingSymbols(doc, n.Parent().NamedChild(0), nil)
@@ -63,7 +63,7 @@ def start():
   pass
 `)
 
-	doc := document.NewDocument(f.input, f.tree)
+	doc := document.NewDocument("", f.input, f.tree)
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SymbolsInScope(doc, n)
@@ -71,7 +71,7 @@ def start():
 	for i, sym := range symbols {
 		names[i] = sym.Name
 	}
-	assert.Equal(t, []string{"bar", "baz", "foo", "start"}, names)
+	assert.Equal(t, []string{"bar", "baz"}, names)
 }
 
 func TestSymbolsInScopeExcludesFollowingSiblings(t *testing.T) {
@@ -88,7 +88,7 @@ def start():
   pass
 `)
 
-	doc := document.NewDocument(f.input, f.tree)
+	doc := document.NewDocument("", f.input, f.tree)
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SymbolsInScope(doc, n)
@@ -96,5 +96,5 @@ def start():
 	for i, sym := range symbols {
 		names[i] = sym.Name
 	}
-	assert.Equal(t, []string{"bar", "baz", "foo", "start"}, names)
+	assert.Equal(t, []string{"bar", "baz"}, names)
 }

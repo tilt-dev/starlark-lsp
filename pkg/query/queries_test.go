@@ -118,6 +118,35 @@ func TestLeafNodes(t *testing.T) {
 
 }
 
+func TestLoadStatements(t *testing.T) {
+	q := newQueryFixture(t, []byte{}, `
+load("file1.star", "foo", "bar")
+if foo():
+  load("file2.star", q="quux") # This is not a legal load statement but we still want to capture it
+quux()
+`)
+	nodes := query.LoadStatements(q.input, q.tree)
+	assert.Equal(t, 2, len(nodes))
+
+	fnNode := nodes[0].ChildByFieldName("function")
+	assert.Equal(t, "load", q.nodeContents(fnNode))
+	argsNode := nodes[0].ChildByFieldName("arguments")
+	args := make([]string, argsNode.NamedChildCount())
+	for i := 0; i < len(args); i++ {
+		args[i] = q.nodeContents(argsNode.NamedChild(i))
+	}
+	assert.ElementsMatch(t, []string{`"file1.star"`, `"foo"`, `"bar"`}, args)
+
+	fnNode = nodes[1].ChildByFieldName("function")
+	assert.Equal(t, "load", q.nodeContents(fnNode))
+	argsNode = nodes[1].ChildByFieldName("arguments")
+	args = make([]string, argsNode.NamedChildCount())
+	for i := 0; i < len(args); i++ {
+		args[i] = q.nodeContents(argsNode.NamedChild(i))
+	}
+	assert.ElementsMatch(t, []string{`"file2.star"`, `q="quux"`}, args)
+}
+
 type queryFixture struct {
 	t     testing.TB
 	q     *sitter.Query

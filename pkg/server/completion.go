@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Server) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	doc, err := s.docs.Read(params.TextDocument.URI)
+	doc, err := s.docs.Read(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err
 	}
