@@ -33,7 +33,7 @@ type Document interface {
 	ContentRange(r sitter.Range) string
 
 	Tree() *sitter.Tree
-	FunctionSignatures() map[string]query.Signature
+	Functions() map[string]query.Signature
 	Symbols() []protocol.DocumentSymbol
 	Diagnostics() []protocol.Diagnostic
 	Loads() []LoadStatement
@@ -51,7 +51,7 @@ func NewDocument(u uri.URI, input []byte, tree *sitter.Tree) Document {
 		input: input,
 		tree:  tree,
 	}
-	doc.signatures = query.Functions(doc, tree.RootNode())
+	doc.functions = query.Functions(doc, tree.RootNode())
 	doc.symbols = query.DocumentSymbols(doc)
 	doc.parseLoadStatements()
 	return doc
@@ -81,7 +81,7 @@ type document struct {
 	// tree represents the parsed version of the document.
 	tree *sitter.Tree
 
-	signatures  map[string]query.Signature
+	functions   map[string]query.Signature
 	symbols     []protocol.DocumentSymbol
 	diagnostics []protocol.Diagnostic
 	loads       []LoadStatement
@@ -105,8 +105,8 @@ func (d *document) Tree() *sitter.Tree {
 	return d.tree
 }
 
-func (d *document) FunctionSignatures() map[string]query.Signature {
-	return d.signatures
+func (d *document) Functions() map[string]query.Signature {
+	return d.functions
 }
 
 func (d *document) Symbols() []protocol.DocumentSymbol {
@@ -134,13 +134,13 @@ func (d *document) Copy() Document {
 		uri:         d.uri,
 		input:       d.input,
 		tree:        d.tree.Copy(),
-		signatures:  make(map[string]query.Signature),
+		functions:   make(map[string]query.Signature),
 		symbols:     append([]protocol.DocumentSymbol{}, d.symbols...),
 		loads:       append([]LoadStatement{}, d.loads...),
 		diagnostics: append([]protocol.Diagnostic{}, d.diagnostics...),
 	}
-	for fn, sig := range d.signatures {
-		doc.signatures[fn] = sig
+	for fn, sig := range d.functions {
+		doc.functions[fn] = sig
 	}
 	return doc
 }
@@ -187,7 +187,7 @@ func (d *document) followLoads(ctx context.Context, m *Manager, parseState Docum
 }
 
 func (d *document) processLoad(dep Document, load LoadStatement) {
-	fns := dep.FunctionSignatures()
+	fns := dep.Functions()
 	symMap := make(map[string]protocol.DocumentSymbol)
 	for _, s := range dep.Symbols() {
 		symMap[s.Name] = s
@@ -198,7 +198,7 @@ func (d *document) processLoad(dep Document, load LoadStatement) {
 			sym.Range = ls.Range
 			d.symbols = append(d.symbols, sym)
 			if f, ok := fns[ls.Name]; ok {
-				d.signatures[ls.Alias] = f
+				d.functions[ls.Alias] = f
 			}
 		} else {
 			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{

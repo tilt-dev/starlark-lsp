@@ -31,8 +31,8 @@ func NewAnalyzer(ctx context.Context, opts ...AnalyzerOption) (*Analyzer, error)
 		}
 	}
 
-	if len(analyzer.builtins.Signatures) != 0 {
-		logger.Debug("registered built-in functions", zap.Int("count", len(analyzer.builtins.Signatures)))
+	if len(analyzer.builtins.Functions) != 0 {
+		logger.Debug("registered built-in functions", zap.Int("count", len(analyzer.builtins.Functions)))
 	}
 	if len(analyzer.builtins.Symbols) != 0 {
 		logger.Debug("registered built-in symbols", zap.Int("count", len(analyzer.builtins.Symbols)))

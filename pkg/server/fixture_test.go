@@ -265,8 +265,8 @@ func (t *testDocument) Tree() *sitter.Tree {
 	return t.doc.Tree()
 }
 
-func (t *testDocument) FunctionSignatures() map[string]query.Signature {
-	return t.doc.FunctionSignatures()
+func (t *testDocument) Functions() map[string]query.Signature {
+	return t.doc.Functions()
 }
 
 func (t *testDocument) Symbols() []protocol.DocumentSymbol {

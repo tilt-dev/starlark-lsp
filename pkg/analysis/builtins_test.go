@@ -235,7 +235,7 @@ func (f *fixture) Symbols(names ...string) {
 }
 
 func (f *fixture) AddFunction(name string, content string) {
-	f.builtins.Signatures[name] = query.Signature{
+	f.builtins.Functions[name] = query.Signature{
 		Name: name,
 		Docs: docstring.Parsed{Description: content},
 	}

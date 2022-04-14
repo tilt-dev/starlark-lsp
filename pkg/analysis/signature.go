@@ -20,11 +20,11 @@ func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node
 	}
 
 	if !found {
-		sig, found = doc.FunctionSignatures()[fnName]
+		sig, found = doc.Functions()[fnName]
 	}
 
 	if !found {
-		sig = a.builtins.Signatures[fnName]
+		sig = a.builtins.Functions[fnName]
 	}
 
 	return sig, sig.Name != ""

@@ -20,8 +20,8 @@ import (
 )
 
 type Builtins struct {
-	Signatures map[string]query.Signature
-	Symbols    []protocol.DocumentSymbol
+	Functions map[string]query.Signature
+	Symbols   []protocol.DocumentSymbol
 }
 
 //go:embed builtins.py
@@ -29,19 +29,19 @@ var StarlarkBuiltins []byte
 
 func NewBuiltins() *Builtins {
 	return &Builtins{
-		Signatures: make(map[string]query.Signature),
-		Symbols:    []protocol.DocumentSymbol{},
+		Functions: make(map[string]query.Signature),
+		Symbols:   []protocol.DocumentSymbol{},
 	}
 }
 
 func (b *Builtins) IsEmpty() bool {
-	return len(b.Signatures) == 0 && len(b.Symbols) == 0
+	return len(b.Functions) == 0 && len(b.Symbols) == 0
 }
 
 func (b *Builtins) Update(other *Builtins) {
-	if len(other.Signatures) > 0 {
-		for name, sig := range other.Signatures {
-			b.Signatures[name] = sig
+	if len(other.Functions) > 0 {
+		for name, fn := range other.Functions {
+			b.Functions[name] = fn
 		}
 	}
 	if len(other.Symbols) > 0 {
@@ -50,9 +50,9 @@ func (b *Builtins) Update(other *Builtins) {
 }
 
 func (b *Builtins) FunctionNames() []string {
-	names := make([]string, len(b.Signatures))
+	names := make([]string, len(b.Functions))
 	i := 0
-	for name := range b.Signatures {
+	for name := range b.Functions {
 		names[i] = name
 		i++
 	}
@@ -116,13 +116,13 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 	}
 
 	doc := document.NewDocument(uri.File(path), contents, tree)
-	docSignatures := doc.FunctionSignatures()
+	functions := doc.Functions()
 	symbols := doc.Symbols()
 	doc.Close()
 
 	return &Builtins{
-		Signatures: docSignatures,
-		Symbols:    symbols,
+		Functions: functions,
+		Symbols:   symbols,
 	}, nil
 }
 
@@ -222,8 +222,8 @@ func LoadBuiltinsFromFS(ctx context.Context, f fs.FS) (*Builtins, error) {
 }
 
 func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
-	for name, fn := range mod.Signatures {
-		parentMod.Signatures[modName+"."+name] = fn
+	for name, fn := range mod.Functions {
+		parentMod.Functions[modName+"."+name] = fn
 	}
 
 	children := []protocol.DocumentSymbol{}
