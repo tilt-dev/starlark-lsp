@@ -27,8 +27,8 @@ func Functions(doc DocumentContent, node *sitter.Node) map[string]protocol.Signa
 		if n.Type() != NodeTypeFunctionDef {
 			continue
 		}
-		fnName, sig := extractSignatureInformation(doc, n)
-		signatures[fnName] = sig
+		sig := extractSignature(doc, n)
+		signatures[sig.name] = sig.signatureInfo()
 	}
 
 	return signatures
@@ -42,14 +42,60 @@ func Function(doc DocumentContent, node *sitter.Node, fnName string) (protocol.S
 		}
 		curFuncName := doc.Content(n.ChildByFieldName(FieldName))
 		if curFuncName == fnName {
-			_, sig := extractSignatureInformation(doc, n)
-			return sig, true
+			sig := extractSignature(doc, n)
+			return sig.signatureInfo(), true
 		}
 	}
 	return protocol.SignatureInformation{}, false
 }
 
-func extractSignatureInformation(doc DocumentContent, n *sitter.Node) (string, protocol.SignatureInformation) {
+type signature struct {
+	name       string
+	params     []parameter
+	returnType string
+	docs       docstring.Parsed
+}
+
+func (s signature) signatureInfo() protocol.SignatureInformation {
+	params := make([]protocol.ParameterInformation, len(s.params))
+	for i, param := range s.params {
+		params[i] = param.paramInfo(s.docs)
+	}
+	sigInfo := protocol.SignatureInformation{
+		Label:      s.label(),
+		Parameters: params,
+	}
+	if s.docs.Description != "" {
+		sigInfo.Documentation = protocol.MarkupContent{
+			Kind:  protocol.PlainText,
+			Value: s.docs.Description,
+		}
+	}
+
+	return sigInfo
+}
+
+// Label produces a human-readable label for a function signature.
+//
+// It's modeled to behave similarly to VSCode Python signature labels.
+func (s signature) label() string {
+	var sb strings.Builder
+	sb.WriteRune('(')
+	for i := range s.params {
+		sb.WriteString(s.params[i].content)
+		if i != len(s.params)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString(")")
+	if s.returnType != "" {
+		sb.WriteString(" -> ")
+		sb.WriteString(s.returnType)
+	}
+	return sb.String()
+}
+
+func extractSignature(doc DocumentContent, n *sitter.Node) signature {
 	if n.Type() != NodeTypeFunctionDef {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}
@@ -65,40 +111,14 @@ func extractSignatureInformation(doc DocumentContent, n *sitter.Node) (string, p
 		returnType = doc.Content(rtNode)
 	}
 
-	sig := protocol.SignatureInformation{
-		Label:      signatureLabel(params, returnType),
-		Parameters: params,
+	sig := signature{
+		name:       fnName,
+		params:     params,
+		returnType: returnType,
+		docs:       fnDocs,
 	}
 
-	if fnDocs.Description != "" {
-		sig.Documentation = protocol.MarkupContent{
-			Kind:  protocol.PlainText,
-			Value: fnDocs.Description,
-		}
-	}
-
-	return fnName, sig
-}
-
-// signatureLabel produces a human-readable label for a function signature.
-//
-// It's modeled to behave similarly to VSCode Python signature labels.
-func signatureLabel(params []protocol.ParameterInformation, returnType string) string {
-	if returnType == "" {
-		returnType = "None"
-	}
-
-	var sb strings.Builder
-	sb.WriteRune('(')
-	for i := range params {
-		sb.WriteString(params[i].Label)
-		if i != len(params)-1 {
-			sb.WriteString(", ")
-		}
-	}
-	sb.WriteString(") -> ")
-	sb.WriteString(returnType)
-	return sb.String()
+	return sig
 }
 
 func extractDocstring(doc DocumentContent, n *sitter.Node) docstring.Parsed {

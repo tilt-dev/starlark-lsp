@@ -15,6 +15,7 @@ type parameter struct {
 	typeHint     string
 	defaultValue string
 	content      string
+	node         *sitter.Node
 }
 
 func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformation {
@@ -46,7 +47,7 @@ func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformat
 }
 
 func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
-	node *sitter.Node) []protocol.ParameterInformation {
+	node *sitter.Node) []parameter {
 	if node.Type() != NodeTypeParameters {
 		// A query is used here because there's several different node types
 		// for parameter values, and the query handles normalization gracefully
@@ -62,7 +63,7 @@ func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
 		panic(fmt.Errorf("invalid node type: %v", node.Type()))
 	}
 
-	var params []protocol.ParameterInformation
+	var params []parameter
 	Query(node, FunctionParameters, func(q *sitter.Query, match *sitter.QueryMatch) bool {
 		var param parameter
 
@@ -77,10 +78,11 @@ func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
 				param.defaultValue = content
 			case "param":
 				param.content = content
+				param.node = c.Node
 			}
 		}
 
-		params = append(params, param.paramInfo(fnDocs))
+		params = append(params, param)
 		return true
 	})
 	return params

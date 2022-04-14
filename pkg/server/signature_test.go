@@ -81,7 +81,7 @@ foo(a,
 	expected := protocol.SignatureHelp{
 		Signatures: []protocol.SignatureInformation{
 			{
-				Label: `(a, b) -> None`,
+				Label: `(a, b)`,
 				Parameters: []protocol.ParameterInformation{
 					{Label: "a"},
 					{Label: "b"},
