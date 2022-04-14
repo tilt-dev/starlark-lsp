@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -61,11 +62,11 @@ func TestLoadBuiltinsFromFile(t *testing.T) {
 	}
 }
 
-func TestLoadBuiltinModule(t *testing.T) {
+func TestLoadBuiltinsFromFS(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.File("api/os.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
@@ -81,9 +82,11 @@ func TestLoadBuiltinModule(t *testing.T) {
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 }
 
-func TestLoadBuiltinModuleFS(t *testing.T) {
+func TestLoadBuiltinsFromFSEmbed(t *testing.T) {
 	fixture := newFixture(t)
-	builtins, err := LoadBuiltinModuleFS(fixture.ctx, testFS, "test")
+	testDir, err := fs.Sub(testFS, "test")
+	require.NoError(t, err)
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, testDir)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
@@ -99,23 +102,23 @@ func TestLoadBuiltinModuleFS(t *testing.T) {
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 }
 
-func TestLoadBuiltinModuleInit(t *testing.T) {
+func TestLoadBuiltinsFromFSInit(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.File("api/__init__.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"getcwd"}, builtins.FunctionNames())
 	assertContainsAll(t, []string{"environ", "getcwd"}, builtins.SymbolNames())
 }
 
-func TestLoadBuiltinModuleDirectory(t *testing.T) {
+func TestLoadBuiltinsFromFSDirectory(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
 	fixture.File("api/os/__init__.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
@@ -131,22 +134,22 @@ func TestLoadBuiltinModuleDirectory(t *testing.T) {
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 }
 
-func TestLoadBuiltinModuleEmptyDirectories(t *testing.T) {
+func TestLoadBuiltinsFromFSEmptyDirectories(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 	assert.True(t, builtins.IsEmpty())
 }
 
-func TestLoadBuiltinModuleMultipleModules(t *testing.T) {
+func TestLoadBuiltinsFromFSMultipleModules(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
 	fixture.File("api/os.py", `name: str = ""`)
 	fixture.File("api/os/__init__.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
@@ -164,12 +167,12 @@ func TestLoadBuiltinModuleMultipleModules(t *testing.T) {
 	assert.Equal(t, protocol.SymbolKindField, nameSym.Kind)
 }
 
-func TestLoadBuiltinModuleDirectoryFile(t *testing.T) {
+func TestLoadBuiltinsFromFSDirectoryFile(t *testing.T) {
 	fixture := newFixture(t)
 	dir := fixture.Dir("api")
 	fixture.Dir("api/os")
 	fixture.File("api/os/fns.py", envGetcwd)
-	builtins, err := LoadBuiltinModule(fixture.ctx, dir, os.DirFS(dir))
+	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"os.fns.getcwd"}, builtins.FunctionNames())
