@@ -269,10 +269,6 @@ func (t *testDocument) FunctionSignatures() map[string]query.Signature {
 	return t.doc.FunctionSignatures()
 }
 
-func (t *testDocument) Functions() map[string]protocol.SignatureInformation {
-	return t.doc.Functions()
-}
-
 func (t *testDocument) Symbols() []protocol.DocumentSymbol {
 	return t.doc.Symbols()
 }

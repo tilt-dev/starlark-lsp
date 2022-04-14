@@ -34,7 +34,6 @@ type Document interface {
 
 	Tree() *sitter.Tree
 	FunctionSignatures() map[string]query.Signature
-	Functions() map[string]protocol.SignatureInformation
 	Symbols() []protocol.DocumentSymbol
 	Diagnostics() []protocol.Diagnostic
 	Loads() []LoadStatement
@@ -53,10 +52,6 @@ func NewDocument(u uri.URI, input []byte, tree *sitter.Tree) Document {
 		tree:  tree,
 	}
 	doc.signatures = query.Functions(doc, tree.RootNode())
-	doc.functions = make(map[string]protocol.SignatureInformation, len(doc.signatures))
-	for name, sig := range doc.signatures {
-		doc.functions[name] = sig.SignatureInfo()
-	}
 	doc.symbols = query.DocumentSymbols(doc)
 	doc.parseLoadStatements()
 	return doc
@@ -87,7 +82,6 @@ type document struct {
 	tree *sitter.Tree
 
 	signatures  map[string]query.Signature
-	functions   map[string]protocol.SignatureInformation
 	symbols     []protocol.DocumentSymbol
 	diagnostics []protocol.Diagnostic
 	loads       []LoadStatement
@@ -113,10 +107,6 @@ func (d *document) Tree() *sitter.Tree {
 
 func (d *document) FunctionSignatures() map[string]query.Signature {
 	return d.signatures
-}
-
-func (d *document) Functions() map[string]protocol.SignatureInformation {
-	return d.functions
 }
 
 func (d *document) Symbols() []protocol.DocumentSymbol {
@@ -145,14 +135,12 @@ func (d *document) Copy() Document {
 		input:       d.input,
 		tree:        d.tree.Copy(),
 		signatures:  make(map[string]query.Signature),
-		functions:   make(map[string]protocol.SignatureInformation),
 		symbols:     append([]protocol.DocumentSymbol{}, d.symbols...),
 		loads:       append([]LoadStatement{}, d.loads...),
 		diagnostics: append([]protocol.Diagnostic{}, d.diagnostics...),
 	}
 	for fn, sig := range d.signatures {
 		doc.signatures[fn] = sig
-		doc.functions[fn] = d.functions[fn]
 	}
 	return doc
 }
