@@ -46,6 +46,15 @@ func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformat
 	return pi
 }
 
+func (p parameter) symbol() protocol.DocumentSymbol {
+	return protocol.DocumentSymbol{
+		Name:   p.name,
+		Kind:   protocol.SymbolKindVariable,
+		Detail: p.content,
+		Range:  NodeRange(p.node),
+	}
+}
+
 func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
 	node *sitter.Node) []parameter {
 	if node.Type() != NodeTypeParameters {

@@ -54,6 +54,7 @@ type signature struct {
 	params     []parameter
 	returnType string
 	docs       docstring.Parsed
+	node       *sitter.Node
 }
 
 func (s signature) signatureInfo() protocol.SignatureInformation {
@@ -95,6 +96,15 @@ func (s signature) label() string {
 	return sb.String()
 }
 
+func (s signature) symbol() protocol.DocumentSymbol {
+	return protocol.DocumentSymbol{
+		Name:   s.name,
+		Kind:   protocol.SymbolKindFunction,
+		Detail: s.label(),
+		Range:  NodeRange(s.node),
+	}
+}
+
 func extractSignature(doc DocumentContent, n *sitter.Node) signature {
 	if n.Type() != NodeTypeFunctionDef {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
@@ -111,14 +121,13 @@ func extractSignature(doc DocumentContent, n *sitter.Node) signature {
 		returnType = doc.Content(rtNode)
 	}
 
-	sig := signature{
+	return signature{
 		name:       fnName,
 		params:     params,
 		returnType: returnType,
 		docs:       fnDocs,
+		node:       n,
 	}
-
-	return sig
 }
 
 func extractDocstring(doc DocumentContent, n *sitter.Node) docstring.Parsed {
