@@ -44,9 +44,9 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.D
 		}
 
 		if n.Type() == NodeTypeFunctionDef {
-			sig := extractSignature(doc, n)
-			symbol = sig.symbol()
-			symbol.Detail = sig.docs.Description
+			sig := ExtractSignature(doc, n)
+			symbol = sig.Symbol()
+			symbol.Detail = sig.Docs.Description
 		}
 
 		if symbol.Name != "" {
@@ -73,9 +73,9 @@ func SymbolsInScope(doc DocumentContent, node *sitter.Node) []protocol.DocumentS
 	var symbols []protocol.DocumentSymbol
 
 	appendParameters := func(fnNode *sitter.Node) {
-		sig := extractSignature(doc, fnNode)
-		for _, p := range sig.params {
-			symbols = append(symbols, p.symbol())
+		sig := ExtractSignature(doc, fnNode)
+		for _, p := range sig.Params {
+			symbols = append(symbols, p.Symbol())
 		}
 	}
 

@@ -18,6 +18,7 @@ import (
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap/zaptest"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
@@ -234,6 +235,10 @@ func (f *fixture) Symbols(names ...string) {
 }
 
 func (f *fixture) AddFunction(name string, content string) {
+	f.builtins.Signatures[name] = query.Signature{
+		Name: name,
+		Docs: docstring.Parsed{Description: content},
+	}
 	f.builtins.Functions[name] = protocol.SignatureInformation{
 		Label:         name,
 		Documentation: content,
@@ -287,10 +292,7 @@ func newFixture(t *testing.T) *fixture {
 	})
 	ctx = protocol.WithLogger(ctx, logger)
 
-	builtins := &Builtins{
-		Functions: make(map[string]protocol.SignatureInformation),
-		Symbols:   []protocol.DocumentSymbol{},
-	}
+	builtins := NewBuiltins()
 	a, _ := NewAnalyzer(ctx)
 	a.builtins = builtins
 

@@ -23,6 +23,7 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
 	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 	"github.com/tilt-dev/starlark-lsp/pkg/server"
 )
 
@@ -262,6 +263,10 @@ func (t *testDocument) ContentRange(r sitter.Range) string {
 
 func (t *testDocument) Tree() *sitter.Tree {
 	return t.doc.Tree()
+}
+
+func (t *testDocument) FunctionSignatures() map[string]query.Signature {
+	return t.doc.FunctionSignatures()
 }
 
 func (t *testDocument) Functions() map[string]protocol.SignatureInformation {

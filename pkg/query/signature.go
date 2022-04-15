@@ -12,8 +12,8 @@ import (
 )
 
 // Functions finds all function definitions that are direct children of the provided sitter.Node.
-func Functions(doc DocumentContent, node *sitter.Node) map[string]protocol.SignatureInformation {
-	signatures := make(map[string]protocol.SignatureInformation)
+func Functions(doc DocumentContent, node *sitter.Node) map[string]Signature {
+	signatures := make(map[string]Signature)
 
 	// N.B. we don't use a query here for a couple reasons:
 	// 	(1) Tree-sitter doesn't support bounding the depth, and we only want
@@ -27,85 +27,84 @@ func Functions(doc DocumentContent, node *sitter.Node) map[string]protocol.Signa
 		if n.Type() != NodeTypeFunctionDef {
 			continue
 		}
-		sig := extractSignature(doc, n)
-		signatures[sig.name] = sig.signatureInfo()
+		sig := ExtractSignature(doc, n)
+		signatures[sig.Name] = sig
 	}
 
 	return signatures
 }
 
 // Function finds a function definition for the given function name that is a direct child of the provided sitter.Node.
-func Function(doc DocumentContent, node *sitter.Node, fnName string) (protocol.SignatureInformation, bool) {
+func Function(doc DocumentContent, node *sitter.Node, fnName string) (Signature, bool) {
 	for n := node.NamedChild(0); n != nil; n = n.NextNamedSibling() {
 		if n.Type() != NodeTypeFunctionDef {
 			continue
 		}
 		curFuncName := doc.Content(n.ChildByFieldName(FieldName))
 		if curFuncName == fnName {
-			sig := extractSignature(doc, n)
-			return sig.signatureInfo(), true
+			return ExtractSignature(doc, n), true
 		}
 	}
-	return protocol.SignatureInformation{}, false
+	return Signature{}, false
 }
 
-type signature struct {
-	name       string
-	params     []parameter
-	returnType string
-	docs       docstring.Parsed
-	node       *sitter.Node
+type Signature struct {
+	Name       string
+	Params     []Parameter
+	ReturnType string
+	Docs       docstring.Parsed
+	Node       *sitter.Node
 }
 
-func (s signature) signatureInfo() protocol.SignatureInformation {
-	params := make([]protocol.ParameterInformation, len(s.params))
-	for i, param := range s.params {
-		params[i] = param.paramInfo(s.docs)
+func (s Signature) SignatureInfo() protocol.SignatureInformation {
+	params := make([]protocol.ParameterInformation, len(s.Params))
+	for i, param := range s.Params {
+		params[i] = param.ParameterInfo(s.Docs)
 	}
 	sigInfo := protocol.SignatureInformation{
-		Label:      s.label(),
+		Label:      s.Label(),
 		Parameters: params,
 	}
-	if s.docs.Description != "" {
+	if s.Docs.Description != "" {
 		sigInfo.Documentation = protocol.MarkupContent{
 			Kind:  protocol.PlainText,
-			Value: s.docs.Description,
+			Value: s.Docs.Description,
 		}
 	}
 
 	return sigInfo
 }
 
-// Label produces a human-readable label for a function signature.
+// Label produces a human-readable Label for a function signature.
 //
 // It's modeled to behave similarly to VSCode Python signature labels.
-func (s signature) label() string {
+func (s Signature) Label() string {
 	var sb strings.Builder
 	sb.WriteRune('(')
-	for i := range s.params {
-		sb.WriteString(s.params[i].content)
-		if i != len(s.params)-1 {
+	for i := range s.Params {
+		sb.WriteString(s.Params[i].Content)
+		if i != len(s.Params)-1 {
 			sb.WriteString(", ")
 		}
 	}
 	sb.WriteString(")")
-	if s.returnType != "" {
+	if s.ReturnType != "" {
 		sb.WriteString(" -> ")
-		sb.WriteString(s.returnType)
+		sb.WriteString(s.ReturnType)
 	}
 	return sb.String()
 }
 
-func (s signature) symbol() protocol.DocumentSymbol {
+func (s Signature) Symbol() protocol.DocumentSymbol {
 	return protocol.DocumentSymbol{
-		Name:   s.name,
+		Name:   s.Name,
 		Kind:   protocol.SymbolKindFunction,
-		Detail: s.label(),
-		Range:  NodeRange(s.node),
+		Detail: s.Label(),
+		Range:  NodeRange(s.Node),
 	}
 }
 
-func extractSignature(doc DocumentContent, n *sitter.Node) signature {
+func ExtractSignature(doc DocumentContent, n *sitter.Node) Signature {
 	if n.Type() != NodeTypeFunctionDef {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}
@@ -121,12 +120,12 @@ func extractSignature(doc DocumentContent, n *sitter.Node) signature {
 		returnType = doc.Content(rtNode)
 	}
 
-	return signature{
-		name:       fnName,
-		params:     params,
-		returnType: returnType,
-		docs:       fnDocs,
-		node:       n,
+	return Signature{
+		Name:       fnName,
+		Params:     params,
+		ReturnType: returnType,
+		Docs:       fnDocs,
+		Node:       n,
 	}
 }
 

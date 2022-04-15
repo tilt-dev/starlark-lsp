@@ -10,19 +10,19 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
 )
 
-type parameter struct {
-	name         string
-	typeHint     string
-	defaultValue string
-	content      string
-	node         *sitter.Node
+type Parameter struct {
+	Name         string
+	TypeHint     string
+	DefaultValue string
+	Content      string
+	Node         *sitter.Node
 }
 
-func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformation {
+func (p Parameter) ParameterInfo(fnDocs docstring.Parsed) protocol.ParameterInformation {
 	// TODO(milas): revisit labels - with type hints this can make signatures
 	// 	really long; it might make sense to only include param name and default
 	// 	value (if any)
-	pi := protocol.ParameterInformation{Label: p.content}
+	pi := protocol.ParameterInformation{Label: p.Content}
 
 	var docContent string
 	for _, fieldsBlock := range fnDocs.Fields {
@@ -30,7 +30,7 @@ func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformat
 			continue
 		}
 		for _, f := range fieldsBlock.Fields {
-			if f.Name == p.name {
+			if f.Name == p.Name {
 				docContent = f.Desc
 			}
 		}
@@ -46,17 +46,17 @@ func (p parameter) paramInfo(fnDocs docstring.Parsed) protocol.ParameterInformat
 	return pi
 }
 
-func (p parameter) symbol() protocol.DocumentSymbol {
+func (p Parameter) Symbol() protocol.DocumentSymbol {
 	return protocol.DocumentSymbol{
-		Name:   p.name,
+		Name:   p.Name,
 		Kind:   protocol.SymbolKindVariable,
-		Detail: p.content,
-		Range:  NodeRange(p.node),
+		Detail: p.Content,
+		Range:  NodeRange(p.Node),
 	}
 }
 
 func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
-	node *sitter.Node) []parameter {
+	node *sitter.Node) []Parameter {
 	if node.Type() != NodeTypeParameters {
 		// A query is used here because there's several different node types
 		// for parameter values, and the query handles normalization gracefully
@@ -72,22 +72,22 @@ func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
 		panic(fmt.Errorf("invalid node type: %v", node.Type()))
 	}
 
-	var params []parameter
+	var params []Parameter
 	Query(node, FunctionParameters, func(q *sitter.Query, match *sitter.QueryMatch) bool {
-		var param parameter
+		var param Parameter
 
 		for _, c := range match.Captures {
 			content := doc.Content(c.Node)
 			switch q.CaptureNameForId(c.Index) {
 			case "name":
-				param.name = content
+				param.Name = content
 			case "type":
-				param.typeHint = content
+				param.TypeHint = content
 			case "value":
-				param.defaultValue = content
+				param.DefaultValue = content
 			case "param":
-				param.content = content
-				param.node = c.Node
+				param.Content = content
+				param.Node = c.Node
 			}
 		}
 

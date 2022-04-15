@@ -20,8 +20,9 @@ import (
 )
 
 type Builtins struct {
-	Functions map[string]protocol.SignatureInformation `json:"functions"`
-	Symbols   []protocol.DocumentSymbol                `json:"symbols"`
+	Signatures map[string]query.Signature
+	Functions  map[string]protocol.SignatureInformation
+	Symbols    []protocol.DocumentSymbol
 }
 
 //go:embed builtins.py
@@ -29,19 +30,21 @@ var StarlarkBuiltins []byte
 
 func NewBuiltins() *Builtins {
 	return &Builtins{
-		Functions: make(map[string]protocol.SignatureInformation),
-		Symbols:   []protocol.DocumentSymbol{},
+		Signatures: make(map[string]query.Signature),
+		Functions:  make(map[string]protocol.SignatureInformation),
+		Symbols:    []protocol.DocumentSymbol{},
 	}
 }
 
 func (b *Builtins) IsEmpty() bool {
-	return len(b.Functions) == 0 && len(b.Symbols) == 0
+	return len(b.Signatures) == 0 && len(b.Symbols) == 0
 }
 
 func (b *Builtins) Update(other *Builtins) {
-	if len(other.Functions) > 0 {
-		for name, sig := range other.Functions {
-			b.Functions[name] = sig
+	if len(other.Signatures) > 0 {
+		for name, sig := range other.Signatures {
+			b.Signatures[name] = sig
+			b.Functions[name] = other.Functions[name]
 		}
 	}
 	if len(other.Symbols) > 0 {
@@ -50,9 +53,9 @@ func (b *Builtins) Update(other *Builtins) {
 }
 
 func (b *Builtins) FunctionNames() []string {
-	names := make([]string, len(b.Functions))
+	names := make([]string, len(b.Signatures))
 	i := 0
-	for name := range b.Functions {
+	for name := range b.Signatures {
 		names[i] = name
 		i++
 	}
@@ -115,22 +118,16 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 		return nil, errors.Wrapf(err, "failed to parse %q", path)
 	}
 
-	functions := make(map[string]protocol.SignatureInformation)
 	doc := document.NewDocument(uri.File(path), contents, tree)
+	docSignatures := doc.FunctionSignatures()
 	docFunctions := doc.Functions()
 	symbols := doc.Symbols()
 	doc.Close()
 
-	for fn, sig := range docFunctions {
-		if _, ok := functions[fn]; ok {
-			return nil, fmt.Errorf("duplicate function %q found in %q", fn, path)
-		}
-		functions[fn] = sig
-	}
-
 	return &Builtins{
-		Functions: functions,
-		Symbols:   symbols,
+		Signatures: docSignatures,
+		Functions:  docFunctions,
+		Symbols:    symbols,
 	}, nil
 }
 
@@ -230,8 +227,9 @@ func LoadBuiltinsFromFS(ctx context.Context, f fs.FS) (*Builtins, error) {
 }
 
 func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
-	for name, fn := range mod.Functions {
-		parentMod.Functions[modName+"."+name] = fn
+	for name, fn := range mod.Signatures {
+		parentMod.Signatures[modName+"."+name] = fn
+		parentMod.Functions[modName+"."+name] = mod.Functions[name]
 	}
 
 	children := []protocol.DocumentSymbol{}
