@@ -20,8 +20,8 @@ import (
 )
 
 type Builtins struct {
-	Functions map[string]protocol.SignatureInformation `json:"functions"`
-	Symbols   []protocol.DocumentSymbol                `json:"symbols"`
+	Functions map[string]query.Signature
+	Symbols   []protocol.DocumentSymbol
 }
 
 //go:embed builtins.py
@@ -29,7 +29,7 @@ var StarlarkBuiltins []byte
 
 func NewBuiltins() *Builtins {
 	return &Builtins{
-		Functions: make(map[string]protocol.SignatureInformation),
+		Functions: make(map[string]query.Signature),
 		Symbols:   []protocol.DocumentSymbol{},
 	}
 }
@@ -40,8 +40,8 @@ func (b *Builtins) IsEmpty() bool {
 
 func (b *Builtins) Update(other *Builtins) {
 	if len(other.Functions) > 0 {
-		for name, sig := range other.Functions {
-			b.Functions[name] = sig
+		for name, fn := range other.Functions {
+			b.Functions[name] = fn
 		}
 	}
 	if len(other.Symbols) > 0 {
@@ -115,18 +115,10 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 		return nil, errors.Wrapf(err, "failed to parse %q", path)
 	}
 
-	functions := make(map[string]protocol.SignatureInformation)
 	doc := document.NewDocument(uri.File(path), contents, tree)
-	docFunctions := doc.Functions()
+	functions := doc.Functions()
 	symbols := doc.Symbols()
 	doc.Close()
-
-	for fn, sig := range docFunctions {
-		if _, ok := functions[fn]; ok {
-			return nil, fmt.Errorf("duplicate function %q found in %q", fn, path)
-		}
-		functions[fn] = sig
-	}
 
 	return &Builtins{
 		Functions: functions,

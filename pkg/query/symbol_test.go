@@ -98,3 +98,45 @@ def start():
 	}
 	assert.Equal(t, []string{"bar", "baz"}, names)
 }
+
+func TestSymbolsInScopeIncludesFunctionArguments1(t *testing.T) {
+	f := newQueryFixture(t, []byte{}, `
+def foo(a, b=True, c=None):
+  bar = 1
+  def baz(d):
+    pass
+  # position
+  pass
+`)
+
+	doc := document.NewDocument("", f.input, f.tree)
+	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
+	assert.True(t, ok)
+	symbols := query.SymbolsInScope(doc, n)
+	names := make([]string, len(symbols))
+	for i, sym := range symbols {
+		names[i] = sym.Name
+	}
+	assert.Equal(t, []string{"bar", "baz", "a", "b", "c"}, names)
+}
+
+func TestSymbolsInScopeIncludesFunctionArguments2(t *testing.T) {
+	f := newQueryFixture(t, []byte{}, `
+def foo(a, b=True, c=None):
+  bar = 1
+  def baz(d):
+    # position
+    pass
+  pass
+`)
+
+	doc := document.NewDocument("", f.input, f.tree)
+	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 4, Character: 4})
+	assert.True(t, ok)
+	symbols := query.SymbolsInScope(doc, n)
+	names := make([]string, len(symbols))
+	for i, sym := range symbols {
+		names[i] = sym.Name
+	}
+	assert.Equal(t, []string{"d", "bar", "baz", "a", "b", "c"}, names)
+}

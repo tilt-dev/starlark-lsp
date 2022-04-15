@@ -8,8 +8,8 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
-func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node, fnName string) (protocol.SignatureInformation, bool) {
-	var sig protocol.SignatureInformation
+func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node, fnName string) (query.Signature, bool) {
+	var sig query.Signature
 	var found bool
 
 	for n := node; n != nil && !query.IsModuleScope(doc, n); n = n.Parent() {
@@ -27,7 +27,7 @@ func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node
 		sig = a.builtins.Functions[fnName]
 	}
 
-	return sig, sig.Label != ""
+	return sig, sig.Name != ""
 }
 
 func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *protocol.SignatureHelp {
@@ -54,12 +54,12 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 		activeParam = args.positional
 	}
 
-	if activeParam > uint32(len(sig.Parameters)-1) {
-		activeParam = uint32(len(sig.Parameters) - 1)
+	if activeParam > uint32(len(sig.Params)-1) {
+		activeParam = uint32(len(sig.Params) - 1)
 	}
 
 	return &protocol.SignatureHelp{
-		Signatures:      []protocol.SignatureInformation{sig},
+		Signatures:      []protocol.SignatureInformation{sig.SignatureInfo()},
 		ActiveParameter: activeParam,
 		ActiveSignature: 0,
 	}
