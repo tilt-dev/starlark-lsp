@@ -50,7 +50,14 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 
 	activeParam := uint32(0)
 
-	if args.positional == args.total {
+	if args.currentKeyword != "" {
+		for i, param := range sig.Params {
+			if param.Name == args.currentKeyword {
+				activeParam = uint32(i)
+				break
+			}
+		}
+	} else if args.positional == args.total {
 		activeParam = args.positional
 	}
 
@@ -68,6 +75,7 @@ func (a *Analyzer) SignatureHelp(doc document.Document, pos protocol.Position) *
 type callArguments struct {
 	positional, total uint32
 	keywords          map[string]bool
+	currentKeyword    string
 }
 
 // possibleCallInfo attempts to find the name of the function for a
@@ -79,10 +87,12 @@ type callArguments struct {
 // 		`identifier`
 func possibleCallInfo(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {
 	for n := node; n != nil; n = n.Parent() {
-		if n.Type() == "call" {
+		if n.Type() == query.NodeTypeCall {
 			fnName = doc.Content(n.ChildByFieldName("function"))
 			args = possibleActiveParam(doc, n.ChildByFieldName("arguments").Child(0), pt)
 			return fnName, args
+		} else if n.Type() == query.NodeTypeArgList {
+			continue
 		} else if n.HasError() {
 			// look for `foo(` and assume it's a function call - this could
 			// happen if the closing `)` is not (yet) present or if there's
@@ -90,7 +100,7 @@ func possibleCallInfo(doc document.Document, node *sitter.Node, pt sitter.Point)
 			possibleCall := n.NamedChild(0)
 			if possibleCall != nil && possibleCall.Type() == query.NodeTypeIdentifier {
 				possibleParen := possibleCall.NextSibling()
-				if possibleParen != nil && !possibleParen.IsNamed() && doc.Content(possibleParen) == "(" {
+				if possibleParen != nil && possibleParen.Type() == "(" {
 					fnName = doc.Content(possibleCall)
 					args = possibleActiveParam(doc, possibleParen.NextSibling(), pt)
 					return fnName, args
@@ -110,16 +120,28 @@ func possibleActiveParam(doc document.Document, node *sitter.Node, pt sitter.Poi
 			break
 		}
 
-		if !n.IsNamed() && doc.Content(n) == "," {
+		switch n.Type() {
+		case ",":
 			args.total++
 			if len(args.keywords) == 0 {
 				args.positional++
 			}
-			continue
-		}
-		if n.Type() == query.NodeTypeKeywordArgument {
+			args.currentKeyword = ""
+		case query.NodeTypeERROR:
+			if doc.Content(n) != "=" {
+				break
+			}
+			fallthrough
+		case "=":
+			if n.PrevSibling().Type() == query.NodeTypeIdentifier {
+				name := doc.Content(n.PrevSibling())
+				args.keywords[name] = true
+				args.currentKeyword = name
+			}
+		case query.NodeTypeKeywordArgument:
 			name := doc.Content(n.ChildByFieldName("name"))
 			args.keywords[name] = true
+			args.currentKeyword = name
 		}
 	}
 	return args
