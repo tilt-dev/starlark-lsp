@@ -11,14 +11,38 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
-func TestSimpleHover(t *testing.T) {
-	f := newFixture(t)
+func TestBasicHover(t *testing.T) {
+	for _, tc := range []struct {
+		name                      string
+		line                      uint32
+		char                      uint32
+		expectedHoverRangeContent string
+		expectedHoverContent      string
+	}{
+		{"func", 0, 1, "foo", "desc1"},
+		{"var", 0, 6, "hello", "desc2"},
+		{"module func - hover over module", 1, 1, "baz.quu", "desc3"},
+		{"module func - hover over dot", 1, 3, "baz.quu", "desc3"},
+		{"module func - hover over func", 1, 5, "baz.quu", "desc3"},
+		{"module var - hover over module", 1, 9, "qux.fd", "desc4"},
+		{"module var - hover over dot", 1, 11, "qux.fd", "desc4"},
+		{"module var - hover over var", 1, 12, "qux.fd", "desc4"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
 
-	f.AddFunction("foo", "foos a bar")
+			f.AddFunction("foo", "desc1")
+			f.AddSymbol("hello", "desc2")
+			f.AddFunction("baz.quu", "desc3")
+			f.AddSymbol("qux.fd", "desc4")
 
-	f.Document("foo(hello)")
-	result := f.a.Hover(f.ctx, f.doc, protocol.Position{Character: 6})
-	assertHoverResult(t, f.doc, "foo(hello)", "foos a bar", result)
+			f.Document(`foo(hello)
+baz.quu(qux.fd)`)
+
+			result := f.a.Hover(f.ctx, f.doc, protocol.Position{Character: tc.char, Line: tc.line})
+			assertHoverResult(t, f.doc, tc.expectedHoverRangeContent, tc.expectedHoverContent, result)
+		})
+	}
 }
 
 func TestHoverFuncDefinedInFile(t *testing.T) {
@@ -34,7 +58,7 @@ def foo():
 foo(hello)
 `)
 	result := f.a.Hover(f.ctx, f.doc, protocol.Position{Line: 7, Character: 2})
-	assertHoverResult(t, f.doc, "foo(hello)", "foos a bar", result)
+	assertHoverResult(t, f.doc, "foo", "foos a bar", result)
 }
 
 func TestHoverNoMatch(t *testing.T) {
@@ -46,8 +70,8 @@ func TestHoverNoMatch(t *testing.T) {
 }
 
 func assertHoverResult(t *testing.T, doc document.Document, highlighted string, content string, result *protocol.Hover) {
-	require.NotNil(t, result)
-	require.NotNil(t, result.Range)
+	require.NotNil(t, result, "result")
+	require.NotNil(t, result.Range, "result.range")
 
 	require.Equal(t, highlighted, contentByRange(doc, *result.Range), "highlighted document content")
 	require.Equal(t, result.Contents.Value, content, "tooltip content")
