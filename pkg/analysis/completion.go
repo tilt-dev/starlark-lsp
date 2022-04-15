@@ -71,9 +71,10 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 		} else {
 			sortText = fmt.Sprintf("1%s", sym.Name)
 		}
+		firstDetailLine := strings.SplitN(sym.Detail, "\n", 2)[0]
 		completionList.Items[i] = protocol.CompletionItem{
 			Label:    sym.Name,
-			Detail:   sym.Detail,
+			Detail:   firstDetailLine,
 			Kind:     ToCompletionItemKind(sym.Kind),
 			SortText: sortText,
 		}

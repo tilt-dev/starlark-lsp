@@ -47,7 +47,13 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.D
 			name, sigInfo := extractSignatureInformation(doc, n)
 			symbol.Name = name
 			symbol.Kind = protocol.SymbolKindFunction
-			symbol.Detail = sigInfo.Label
+			if sigInfo.Documentation != nil {
+				if s, ok := sigInfo.Documentation.(protocol.MarkupContent); ok {
+					symbol.Detail = s.Value
+				} else {
+					symbol.Detail = sigInfo.Documentation.(string)
+				}
+			}
 			symbol.Range = NodeRange(n)
 		}
 
