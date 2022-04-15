@@ -239,10 +239,6 @@ func (f *fixture) AddFunction(name string, content string) {
 		Name: name,
 		Docs: docstring.Parsed{Description: content},
 	}
-	f.builtins.Functions[name] = protocol.SignatureInformation{
-		Label:         name,
-		Documentation: content,
-	}
 	f.AddSymbol(name, content)
 }
 

@@ -21,7 +21,6 @@ import (
 
 type Builtins struct {
 	Signatures map[string]query.Signature
-	Functions  map[string]protocol.SignatureInformation
 	Symbols    []protocol.DocumentSymbol
 }
 
@@ -31,7 +30,6 @@ var StarlarkBuiltins []byte
 func NewBuiltins() *Builtins {
 	return &Builtins{
 		Signatures: make(map[string]query.Signature),
-		Functions:  make(map[string]protocol.SignatureInformation),
 		Symbols:    []protocol.DocumentSymbol{},
 	}
 }
@@ -44,7 +42,6 @@ func (b *Builtins) Update(other *Builtins) {
 	if len(other.Signatures) > 0 {
 		for name, sig := range other.Signatures {
 			b.Signatures[name] = sig
-			b.Functions[name] = other.Functions[name]
 		}
 	}
 	if len(other.Symbols) > 0 {
@@ -120,13 +117,11 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 
 	doc := document.NewDocument(uri.File(path), contents, tree)
 	docSignatures := doc.FunctionSignatures()
-	docFunctions := doc.Functions()
 	symbols := doc.Symbols()
 	doc.Close()
 
 	return &Builtins{
 		Signatures: docSignatures,
-		Functions:  docFunctions,
 		Symbols:    symbols,
 	}, nil
 }
@@ -229,7 +224,6 @@ func LoadBuiltinsFromFS(ctx context.Context, f fs.FS) (*Builtins, error) {
 func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
 	for name, fn := range mod.Signatures {
 		parentMod.Signatures[modName+"."+name] = fn
-		parentMod.Functions[modName+"."+name] = mod.Functions[name]
 	}
 
 	children := []protocol.DocumentSymbol{}

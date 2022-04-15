@@ -199,7 +199,7 @@ func (d *document) followLoads(ctx context.Context, m *Manager, parseState Docum
 }
 
 func (d *document) processLoad(dep Document, load LoadStatement) {
-	fns := dep.Functions()
+	fns := dep.FunctionSignatures()
 	symMap := make(map[string]protocol.DocumentSymbol)
 	for _, s := range dep.Symbols() {
 		symMap[s.Name] = s
@@ -210,7 +210,7 @@ func (d *document) processLoad(dep Document, load LoadStatement) {
 			sym.Range = ls.Range
 			d.symbols = append(d.symbols, sym)
 			if f, ok := fns[ls.Name]; ok {
-				d.functions[ls.Alias] = f
+				d.signatures[ls.Alias] = f
 			}
 		} else {
 			d.diagnostics = append(d.diagnostics, protocol.Diagnostic{
