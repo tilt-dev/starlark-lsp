@@ -16,11 +16,11 @@ func (f *fixture) builtinSymbols() {
 
 func (f *fixture) osSysSymbols() {
 	f.Symbols("os", "sys")
-	f.builtins.Symbols[0].Children = []protocol.DocumentSymbol{
+	f.builtins.Symbols[0].Children = []query.Symbol{
 		f.Symbol("environ"),
 		f.Symbol("name"),
 	}
-	f.builtins.Symbols[1].Children = []protocol.DocumentSymbol{
+	f.builtins.Symbols[1].Children = []query.Symbol{
 		f.Symbol("argv"),
 		f.Symbol("executable"),
 	}

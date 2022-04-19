@@ -3,6 +3,7 @@ package query
 import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
+	"go.lsp.dev/uri"
 )
 
 // PositionToPoint converts an LSP protocol file location to a Tree-sitter file location.
@@ -18,6 +19,13 @@ func pointToPosition(point sitter.Point) protocol.Position {
 	return protocol.Position{
 		Line:      point.Row,
 		Character: point.Column,
+	}
+}
+
+func NodeLocation(node *sitter.Node, docURI uri.URI) protocol.Location {
+	return protocol.Location{
+		URI:   docURI,
+		Range: NodeRange(node),
 	}
 }
 

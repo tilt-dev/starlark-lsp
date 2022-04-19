@@ -17,7 +17,7 @@ func (a *Analyzer) Hover(ctx context.Context, doc document.Document, pos protoco
 	}
 
 	symbols := a.completeExpression(doc, nodes, pt)
-	var symbol protocol.DocumentSymbol
+	var symbol query.Symbol
 	limit := nodes[len(nodes)-1].EndPoint()
 	identifiers := query.ExtractIdentifiers(doc, nodes, &limit)
 	if len(identifiers) == 0 {

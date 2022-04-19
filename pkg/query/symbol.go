@@ -10,10 +10,10 @@ import (
 
 // Get all symbols defined at the same level as the given node.
 // If before != nil, only include symbols that appear before that node.
-func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.DocumentSymbol {
-	var symbols []protocol.DocumentSymbol
+func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
+	var symbols []Symbol
 	for n := node; n != nil && NodeBefore(n, before); n = n.NextNamedSibling() {
-		var symbol protocol.DocumentSymbol
+		var symbol Symbol
 
 		if n.Type() == NodeTypeExpressionStatement {
 			assignment := n.NamedChild(0)
@@ -34,7 +34,7 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []protocol.D
 				kind = protocol.SymbolKindVariable
 			}
 			symbol.Kind = kind
-			symbol.Range = NodeRange(n)
+			symbol.Location = NodeLocation(n, doc.URI())
 			// Look for possible docstring for the assigned variable
 			if n.NextNamedSibling() != nil && n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
 				if ch := n.NextNamedSibling().NamedChild(0); ch != nil && ch.Type() == NodeTypeString {
@@ -69,8 +69,8 @@ func IsModuleScope(doc DocumentContent, node *sitter.Node) bool {
 
 // Get all symbols defined in scopes at or above the level of the given node,
 // excluding symbols from the top-level module (document symbols).
-func SymbolsInScope(doc DocumentContent, node *sitter.Node) []protocol.DocumentSymbol {
-	var symbols []protocol.DocumentSymbol
+func SymbolsInScope(doc DocumentContent, node *sitter.Node) []Symbol {
+	var symbols []Symbol
 
 	appendParameters := func(fnNode *sitter.Node) {
 		sig := ExtractSignature(doc, fnNode)
@@ -102,7 +102,7 @@ func SymbolsInScope(doc DocumentContent, node *sitter.Node) []protocol.DocumentS
 }
 
 // DocumentSymbols returns all symbols with document-wide visibility.
-func DocumentSymbols(doc DocumentContent) []protocol.DocumentSymbol {
+func DocumentSymbols(doc DocumentContent) []Symbol {
 	return SiblingSymbols(doc, doc.Tree().RootNode().NamedChild(0), nil)
 }
 
@@ -119,4 +119,14 @@ func SymbolsBefore(symbols []protocol.DocumentSymbol, before *sitter.Node) []pro
 		}
 	}
 	return result
+}
+
+type Symbol struct {
+	Name           string
+	Detail         string
+	Kind           protocol.SymbolKind
+	Tags           []protocol.SymbolTag
+	Location       protocol.Location
+	SelectionRange protocol.Range
+	Children       []Symbol
 }

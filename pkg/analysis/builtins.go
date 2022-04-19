@@ -21,7 +21,7 @@ import (
 
 type Builtins struct {
 	Functions map[string]query.Signature
-	Symbols   []protocol.DocumentSymbol
+	Symbols   []query.Symbol
 }
 
 //go:embed builtins.py
@@ -30,7 +30,7 @@ var StarlarkBuiltins []byte
 func NewBuiltins() *Builtins {
 	return &Builtins{
 		Functions: make(map[string]query.Signature),
-		Symbols:   []protocol.DocumentSymbol{},
+		Symbols:   []query.Symbol{},
 	}
 }
 
@@ -98,7 +98,7 @@ func WithStarlarkBuiltins() AnalyzerOption {
 			return errors.Wrapf(err, "loading builtins from builtins.py")
 		}
 		analyzer.builtins.Update(&Builtins{
-			Symbols: []protocol.DocumentSymbol{
+			Symbols: []query.Symbol{
 				{Name: "False", Kind: protocol.SymbolKindBoolean},
 				{Name: "None", Kind: protocol.SymbolKindNull},
 				{Name: "True", Kind: protocol.SymbolKindBoolean},
@@ -226,7 +226,7 @@ func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
 		parentMod.Functions[modName+"."+name] = fn
 	}
 
-	children := []protocol.DocumentSymbol{}
+	children := []query.Symbol{}
 	for _, sym := range mod.Symbols {
 		var kind protocol.SymbolKind
 		switch sym.Kind {
@@ -252,7 +252,7 @@ func copyBuiltinsToParent(mod, parentMod *Builtins, modName string) {
 		if existingIndex >= 0 {
 			parentMod.Symbols[existingIndex].Children = append(parentMod.Symbols[existingIndex].Children, children...)
 		} else {
-			parentMod.Symbols = append(parentMod.Symbols, protocol.DocumentSymbol{
+			parentMod.Symbols = append(parentMod.Symbols, query.Symbol{
 				Name:     modName,
 				Kind:     protocol.SymbolKindVariable,
 				Children: children,
