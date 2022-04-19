@@ -1,7 +1,7 @@
 package query
 
 import (
-	"strings"
+	"fmt"
 
 	"go.lsp.dev/protocol"
 
@@ -15,35 +15,10 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
 	for n := node; n != nil && NodeBefore(n, before); n = n.NextNamedSibling() {
 		var symbol Symbol
 
-		if n.Type() == NodeTypeExpressionStatement {
-			assignment := n.NamedChild(0)
-			if assignment == nil || assignment.Type() != "assignment" {
-				continue
-			}
-			symbol.Name = doc.Content(assignment.ChildByFieldName("left"))
-			val := assignment.ChildByFieldName("right")
-			var kind protocol.SymbolKind
-			if val == nil {
-				// python variable assignment without an initial value
-				// (https://peps.python.org/pep-0526/); just assume a variable
-				kind = 0
-			} else {
-				kind = nodeTypeToSymbolKind(val)
-			}
-			if kind == 0 {
-				kind = protocol.SymbolKindVariable
-			}
-			symbol.Kind = kind
-			symbol.Location = NodeLocation(n, doc.URI())
-			// Look for possible docstring for the assigned variable
-			if n.NextNamedSibling() != nil && n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
-				if ch := n.NextNamedSibling().NamedChild(0); ch != nil && ch.Type() == NodeTypeString {
-					symbol.Detail = strings.Trim(doc.Content(ch), `"'`)
-				}
-			}
-		}
-
-		if n.Type() == NodeTypeFunctionDef {
+		switch n.Type() {
+		case NodeTypeExpressionStatement:
+			symbol = ExtractAssignment(doc, n)
+		case NodeTypeFunctionDef:
 			sig := ExtractSignature(doc, n)
 			symbol = sig.Symbol()
 			symbol.Detail = sig.Docs.Description
@@ -54,6 +29,43 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
 		}
 	}
 	return symbols
+}
+
+func ExtractAssignment(doc DocumentContent, n *sitter.Node) Symbol {
+	if n.Type() != NodeTypeExpressionStatement {
+		panic(fmt.Errorf("invalid node type: %s", n.Type()))
+	}
+
+	var symbol Symbol
+	assignment := n.NamedChild(0)
+	if assignment == nil || assignment.Type() != "assignment" {
+		return symbol
+	}
+	symbol.Name = doc.Content(assignment.ChildByFieldName("left"))
+	val := assignment.ChildByFieldName("right")
+	t := assignment.ChildByFieldName("type")
+	var kind protocol.SymbolKind
+	if t != nil {
+		kind = pythonTypeToSymbolKind(doc, t)
+	} else if val != nil {
+		kind = nodeTypeToSymbolKind(val)
+	}
+	if kind == 0 {
+		kind = protocol.SymbolKindVariable
+	}
+	symbol.Kind = kind
+	symbol.Location = protocol.Location{
+		Range: NodeRange(n),
+		// TODO add URI
+	}
+
+	// Look for possible docstring for the assigned variable
+	if n.NextNamedSibling() != nil && n.NextNamedSibling().Type() == NodeTypeExpressionStatement {
+		if ch := n.NextNamedSibling().NamedChild(0); ch != nil && ch.Type() == NodeTypeString {
+			symbol.Detail = Unquote(doc.Input(), ch)
+		}
+	}
+	return symbol
 }
 
 // A node is in the scope of the top level module if there are no function

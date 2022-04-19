@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
@@ -230,4 +231,10 @@ func (f *queryFixture) assertNoCapture(name string, captures []sitter.QueryCaptu
 
 func (f *queryFixture) nodeContents(n *sitter.Node) string {
 	return n.Content(f.input)
+}
+
+func (f *queryFixture) document() query.DocumentContent {
+	doc := document.NewDocument("", f.input, f.tree)
+	f.t.Cleanup(doc.Close)
+	return doc
 }

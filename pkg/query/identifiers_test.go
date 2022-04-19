@@ -6,7 +6,6 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
@@ -46,7 +45,7 @@ print("")`, expected: []string{"os", "path", ""}, limit: &sitter.Point{Column: 8
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
 			f := newQueryFixture(t, []byte{}, tt.doc)
-			doc := document.NewDocument("", f.input, f.tree)
+			doc := f.document()
 			ids := query.ExtractIdentifiers(doc, []*sitter.Node{f.tree.RootNode()}, tt.limit)
 			assert.ElementsMatch(t, tt.expected, ids)
 		})
