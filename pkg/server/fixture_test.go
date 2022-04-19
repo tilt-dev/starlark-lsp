@@ -269,7 +269,7 @@ func (t *testDocument) Functions() map[string]query.Signature {
 	return t.doc.Functions()
 }
 
-func (t *testDocument) Symbols() []protocol.DocumentSymbol {
+func (t *testDocument) Symbols() []query.Symbol {
 	return t.doc.Symbols()
 }
 
@@ -279,6 +279,10 @@ func (t *testDocument) Diagnostics() []protocol.Diagnostic {
 
 func (t *testDocument) Loads() []document.LoadStatement {
 	return t.doc.Loads()
+}
+
+func (t *testDocument) URI() uri.URI {
+	return uri.New("file://test.txt")
 }
 
 func (t *testDocument) Copy() document.Document {

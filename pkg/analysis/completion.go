@@ -13,20 +13,20 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
-func SymbolMatching(symbols []protocol.DocumentSymbol, name string) protocol.DocumentSymbol {
+func SymbolMatching(symbols []query.Symbol, name string) query.Symbol {
 	for _, sym := range symbols {
 		if sym.Name == name {
 			return sym
 		}
 	}
-	return protocol.DocumentSymbol{}
+	return query.Symbol{}
 }
 
-func SymbolsStartingWith(symbols []protocol.DocumentSymbol, prefix string) []protocol.DocumentSymbol {
+func SymbolsStartingWith(symbols []query.Symbol, prefix string) []query.Symbol {
 	if prefix == "" {
 		return symbols
 	}
-	result := []protocol.DocumentSymbol{}
+	result := []query.Symbol{}
 	for _, sym := range symbols {
 		if strings.HasPrefix(sym.Name, prefix) {
 			result = append(result, sym)
@@ -51,7 +51,7 @@ func ToCompletionItemKind(k protocol.SymbolKind) protocol.CompletionItemKind {
 func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *protocol.CompletionList {
 	pt := query.PositionToPoint(pos)
 	nodes, ok := a.nodesAtPointForCompletion(doc, pt)
-	symbols := []protocol.DocumentSymbol{}
+	symbols := []query.Symbol{}
 
 	if ok {
 		symbols = a.completeExpression(doc, nodes, pt)
@@ -85,7 +85,7 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	return completionList
 }
 
-func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
+func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Node, pt sitter.Point) []query.Symbol {
 	var nodeAtPoint *sitter.Node
 	if len(nodes) > 0 {
 		nodeAtPoint = nodes[len(nodes)-1]
@@ -132,8 +132,8 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 //   level (document symbols), because the document already has those computed
 // - Add document symbols
 // - Add builtins
-func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []protocol.DocumentSymbol {
-	symbols := []protocol.DocumentSymbol{}
+func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []query.Symbol {
+	symbols := []query.Symbol{}
 	if nodeAtPoint != nil {
 		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
 			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
@@ -259,15 +259,15 @@ func (a *Analyzer) leafNodesForCompletion(doc document.Document, node *sitter.No
 	return nodes, true
 }
 
-func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callArguments) []protocol.DocumentSymbol {
-	symbols := []protocol.DocumentSymbol{}
+func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callArguments) []query.Symbol {
+	symbols := []query.Symbol{}
 	for i, param := range fn.Params {
 		if i < int(args.positional) {
 			continue
 		}
 		kwarg := param.Name
 		if used := args.keywords[kwarg]; !used {
-			symbols = append(symbols, protocol.DocumentSymbol{
+			symbols = append(symbols, query.Symbol{
 				Name:   kwarg + "=",
 				Detail: param.Content,
 				Kind:   protocol.SymbolKindVariable,

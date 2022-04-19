@@ -244,21 +244,21 @@ func (f *fixture) AddFunction(name string, content string) {
 
 func (f *fixture) AddSymbol(name string, content string) {
 	ids := strings.Split(name, ".")
-	var cur protocol.DocumentSymbol
+	var cur query.Symbol
 	for i := len(ids) - 1; i >= 0; i-- {
-		s := protocol.DocumentSymbol{Name: ids[i]}
+		s := query.Symbol{Name: ids[i]}
 		if i == len(ids)-1 {
 			s.Detail = content
 		} else {
-			s.Children = []protocol.DocumentSymbol{cur}
+			s.Children = []query.Symbol{cur}
 		}
 		cur = s
 	}
 	f.builtins.Symbols = append(f.builtins.Symbols, cur)
 }
 
-func (f *fixture) Symbol(name string) protocol.DocumentSymbol {
-	return protocol.DocumentSymbol{
+func (f *fixture) Symbol(name string) query.Symbol {
+	return query.Symbol{
 		Name: name,
 		Kind: protocol.SymbolKindVariable,
 	}

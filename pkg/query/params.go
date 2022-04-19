@@ -3,6 +3,8 @@ package query
 import (
 	"fmt"
 
+	"go.lsp.dev/uri"
+
 	"go.lsp.dev/protocol"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -15,6 +17,7 @@ type Parameter struct {
 	TypeHint     string
 	DefaultValue string
 	Content      string
+	DocURI       uri.URI
 	Node         *sitter.Node
 }
 
@@ -46,12 +49,12 @@ func (p Parameter) ParameterInfo(fnDocs docstring.Parsed) protocol.ParameterInfo
 	return pi
 }
 
-func (p Parameter) Symbol() protocol.DocumentSymbol {
-	return protocol.DocumentSymbol{
-		Name:   p.Name,
-		Kind:   protocol.SymbolKindVariable,
-		Detail: p.Content,
-		Range:  NodeRange(p.Node),
+func (p Parameter) Symbol() Symbol {
+	return Symbol{
+		Name:     p.Name,
+		Kind:     protocol.SymbolKindVariable,
+		Detail:   p.Content,
+		Location: NodeLocation(p.Node, p.DocURI),
 	}
 }
 
@@ -74,7 +77,9 @@ func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
 
 	var params []Parameter
 	Query(node, FunctionParameters, func(q *sitter.Query, match *sitter.QueryMatch) bool {
-		var param Parameter
+		param := Parameter{
+			DocURI: doc.URI(),
+		}
 
 		for _, c := range match.Captures {
 			content := doc.Content(c.Node)
