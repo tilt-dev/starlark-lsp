@@ -3,11 +3,15 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
+	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
 const SPEC = "https://raw.githubusercontent.com/bazelbuild/starlark/master/spec.md"
@@ -28,6 +32,7 @@ type Method struct {
 
 type BuiltinsScanner struct {
 	scanner   *bufio.Scanner
+	hints     *analysis.Builtins
 	Functions []Function
 	Methods   []Method
 }
@@ -103,6 +108,22 @@ func (b *BuiltinsScanner) nextParagraph() (string, error) {
 			return "", b.scanner.Err()
 		}
 	}
+}
+
+func (b *BuiltinsScanner) loadHints() error {
+	contents, err := os.ReadFile("hack/starlark-builtins.py")
+	if os.IsNotExist(err) {
+		contents, err = os.ReadFile("starlark-builtins.py")
+	}
+	if err != nil {
+		return err
+	}
+	hints, err := analysis.LoadBuiltinsFromSource(context.Background(), contents, "starlark-builtins.py")
+	if err != nil {
+		return err
+	}
+	b.hints = hints
+	return nil
 }
 
 var signature *regexp.Regexp = regexp.MustCompile("`([^`]+)`")
@@ -192,16 +213,33 @@ func (b *BuiltinsScanner) parseMethods() error {
 
 func (b *BuiltinsScanner) outputStubs() {
 	for _, f := range b.Functions {
-		fmt.Printf("def %s:\n  \"\"\"%s\"\"\"\n  pass\n\n", f.Signature, f.Desc)
+		signature := f.Signature
+		if sig, ok := b.hints.Functions[f.Name]; ok {
+			signature = sig.Name + sig.Label()
+		}
+		fmt.Printf("def %s:\n  \"\"\"%s\"\"\"\n  pass\n\n", signature, f.Desc)
 	}
 
 	var className string
+	var ty query.Type
 	for _, m := range b.Methods {
 		if className != m.ClassName {
-			fmt.Printf("class %s:\n", strings.ToTitle(m.ClassName[0:1])+m.ClassName[1:])
+			name := strings.ToTitle(m.ClassName[0:1]) + m.ClassName[1:]
+			fmt.Printf("class %s:\n", name)
 			className = m.ClassName
+			ty = b.hints.Types[name]
 		}
-		fmt.Printf("  def %s:\n    \"\"\"%s\"\"\"\n    pass\n\n", m.Signature, m.Desc)
+		signature := m.Signature
+		for _, tm := range ty.Methods {
+			if tm.Name == m.Name {
+				// Re-insert 'self' parameter
+				params := tm.Params
+				tm.Params = append([]query.Parameter{{Name: "self", Content: "self"}}, params...)
+				signature = tm.Name + tm.Label()
+				break
+			}
+		}
+		fmt.Printf("  def %s:\n    \"\"\"%s\"\"\"\n    pass\n\n", signature, m.Desc)
 	}
 }
 
@@ -227,6 +265,9 @@ func main() {
 	}
 
 	scanner := &BuiltinsScanner{scanner: bs}
+
+	topError("loading type hints",
+		scanner.loadHints())
 
 	topError("parsing constants and functions",
 		scanner.parseConstantsAndFunctions())
