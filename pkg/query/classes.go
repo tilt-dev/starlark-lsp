@@ -1,6 +1,8 @@
 package query
 
 import (
+	"strings"
+
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -37,7 +39,9 @@ func Classes(doc DocumentContent, node *sitter.Node) []Class {
 				if len(meth.Params) > 0 && meth.Params[0].Content == "self" {
 					meth.Params = meth.Params[1:]
 				}
-				curr.Methods = append(curr.Methods, meth)
+				if !strings.HasPrefix(meth.Name, "_") {
+					curr.Methods = append(curr.Methods, meth)
+				}
 			}
 		}
 		if curr.Name != "" && (len(curr.Methods) > 0 || len(curr.Fields) > 0) {
