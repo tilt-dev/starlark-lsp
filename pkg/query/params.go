@@ -18,7 +18,7 @@ type Parameter struct {
 	DefaultValue string
 	Content      string
 	DocURI       uri.URI
-	Node         *sitter.Node
+	Location     protocol.Location
 }
 
 func (p Parameter) ParameterInfo(fnDocs docstring.Parsed) protocol.ParameterInformation {
@@ -54,7 +54,7 @@ func (p Parameter) Symbol() Symbol {
 		Name:     p.Name,
 		Kind:     protocol.SymbolKindVariable,
 		Detail:   p.Content,
-		Location: NodeLocation(p.Node, p.DocURI),
+		Location: p.Location,
 	}
 }
 
@@ -92,7 +92,7 @@ func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
 				param.DefaultValue = content
 			case "param":
 				param.Content = content
-				param.Node = c.Node
+				param.Location = NodeLocation(c.Node, param.DocURI)
 			}
 		}
 
