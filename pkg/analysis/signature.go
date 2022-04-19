@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"strings"
+
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
@@ -24,7 +26,13 @@ func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node
 	}
 
 	if !found {
-		sig = a.builtins.Functions[fnName]
+		sig, found = a.builtins.Functions[fnName]
+	}
+
+	if !found && strings.Contains(fnName, ".") {
+		ind := strings.LastIndex(fnName, ".")
+		fnName = fnName[ind+1:]
+		sig = a.builtins.Methods[fnName]
 	}
 
 	return sig, sig.Name != ""

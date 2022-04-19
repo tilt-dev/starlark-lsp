@@ -60,3 +60,17 @@ func TestSignatureHelp(t *testing.T) {
 		})
 	}
 }
+
+func TestMethodSignatureHelp(t *testing.T) {
+	f := newFixture(t)
+	_ = WithStarlarkBuiltins()(f.a)
+	f.Document(`"".endswith()`)
+	help := f.a.SignatureHelp(f.doc, protocol.Position{Character: 12})
+	assert.NotNil(t, help)
+	if help == nil {
+		return
+	}
+	assert.Equal(t, 1, len(help.Signatures))
+	assert.Equal(t, "(suffix)", help.Signatures[0].Label)
+	assert.Equal(t, uint32(0), help.ActiveParameter)
+}
