@@ -125,8 +125,8 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 
 	if len(symbols) == 0 {
 		lastId := identifiers[len(identifiers)-1]
-		expr, dot := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
-		if dot != nil {
+		expr := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+		if expr != nil {
 			symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
 		}
 	}
@@ -285,12 +285,13 @@ func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callArguments) []q
 	return symbols
 }
 
-// Find the object and the dot '.' of an attribute expression immediately before the given point.
-func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Point) (expr *sitter.Node, dot *sitter.Node) {
+// Find the object part of an attribute expression that has a dot '.' immediately before the given point.
+func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Point) *sitter.Node {
 	if pt.Column == 0 {
-		return nil, nil
+		return nil
 	}
 
+	var dot *sitter.Node
 	searchRange := sitter.Range{StartPoint: sitter.Point{Row: pt.Row, Column: pt.Column - 1}, EndPoint: pt}
 	var parentNode *sitter.Node
 	for i := len(nodes) - 1; i >= 0; i-- {
@@ -315,7 +316,7 @@ func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Poin
 		}
 	}
 	if dot != nil {
-		expr = parentNode.PrevSibling()
+		expr := parentNode.PrevSibling()
 		for n := dot; n != parentNode; n = n.Parent() {
 			if n.PrevSibling() != nil {
 				expr = n.PrevSibling()
@@ -327,10 +328,10 @@ func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Poin
 			a.logger.Debug("dot completion",
 				zap.String("dot", dot.String()),
 				zap.String("expr", expr.String()))
-			return expr, dot
+			return expr
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 // Perform some rudimentary type analysis to determine the Starlark type of the node
