@@ -296,3 +296,37 @@ func TestMemberCompletion(t *testing.T) {
 		})
 	}
 }
+
+func TestTypedMemberCompletion(t *testing.T) {
+	f := newFixture(t)
+	_ = WithStarlarkBuiltins()(f.a)
+
+	f.builtins.Functions["foo"] = query.Signature{
+		Name:       "foo",
+		ReturnType: "str",
+	}
+
+	tests := []struct {
+		doc        string
+		line, char uint32
+		expected   []string
+	}{
+		{doc: `"".c`, char: 4, expected: []string{"capitalize", "count"}},
+		{doc: `[].c`, char: 4, expected: []string{"clear"}},
+		{doc: `{}.i`, char: 4, expected: []string{"items"}},
+		{doc: `s = ""
+s.c`, line: 1, char: 3, expected: []string{"capitalize", "count"}},
+		{doc: `s = []
+s.c`, line: 1, char: 3, expected: []string{"clear"}},
+		{doc: `s = {}
+s.i`, line: 1, char: 3, expected: []string{"items"}},
+		{doc: `foo().c`, char: 7, expected: []string{"capitalize", "count"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			f.Document(tt.doc)
+			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			assertCompletionResult(t, tt.expected, result)
+		})
+	}
+}

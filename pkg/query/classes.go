@@ -21,6 +21,7 @@ type Class struct {
 	Name    string
 	Methods []Signature
 	Fields  []Symbol
+	Members []Symbol
 }
 
 func Classes(doc DocumentContent, node *sitter.Node) []Class {
@@ -32,7 +33,9 @@ func Classes(doc DocumentContent, node *sitter.Node) []Class {
 			case "name":
 				curr.Name = doc.Content(c.Node)
 			case "field":
-				curr.Fields = append(curr.Fields, ExtractAssignment(doc, c.Node))
+				field := ExtractAssignment(doc, c.Node)
+				curr.Fields = append(curr.Fields, field)
+				curr.Members = append(curr.Members, field)
 			case "method":
 				meth := ExtractSignature(doc, c.Node)
 				// Remove Python "self" parameter if present
@@ -41,6 +44,7 @@ func Classes(doc DocumentContent, node *sitter.Node) []Class {
 				}
 				if !strings.HasPrefix(meth.Name, "_") {
 					curr.Methods = append(curr.Methods, meth)
+					curr.Members = append(curr.Members, meth.Symbol())
 				}
 			}
 		}

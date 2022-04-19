@@ -40,6 +40,7 @@ print("")`, expected: []string{"os", "path", "print"}},
 print("")`, expected: []string{"os", "path", ""}, limit: &sitter.Point{Column: 8}},
 
 		{doc: "if x and : pass", expected: []string{"x", ""}},
+		{doc: "{}.p", expected: []string{"", "p"}},
 	}
 
 	for _, tt := range tests {

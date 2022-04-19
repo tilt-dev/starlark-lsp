@@ -104,7 +104,7 @@ func TestLoadBuiltinsFromFSEmbed(t *testing.T) {
 
 	assert.Equal(t, 1, len(builtins.Methods))
 	assert.Equal(t, []string{"curl"}, mapKeys(builtins.Methods))
-	assert.Equal(t, []string{"curl", "url"}, symbolNames(builtins.Members))
+	assert.Equal(t, []string{"url", "curl"}, symbolNames(builtins.Members))
 
 	assert.Equal(t, 1, len(builtins.Types))
 	assert.Equal(t, []string{"Link"}, mapKeys(builtins.Types))

@@ -148,9 +148,8 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 		types[c.Name] = c
 		for _, method := range c.Methods {
 			methods[method.Name] = method
-			members = append(members, method.Symbol())
 		}
-		members = append(members, c.Fields...)
+		members = append(members, c.Members...)
 	}
 
 	doc.Close()

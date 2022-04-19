@@ -125,9 +125,9 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 
 	if len(symbols) == 0 {
 		lastId := identifiers[len(identifiers)-1]
-		_, dot := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+		expr, dot := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
 		if dot != nil {
-			symbols = append(symbols, SymbolsStartingWith(a.builtins.Members, lastId)...)
+			symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
 		}
 	}
 
@@ -331,6 +331,74 @@ func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Poin
 		}
 	}
 	return nil, nil
+}
+
+// Perform some rudimentary type analysis to determine the Starlark type of the node
+func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string {
+	switch node.Type() {
+	case query.NodeTypeString:
+		return "String"
+	case query.NodeTypeDictionary:
+		return "Dict"
+	case query.NodeTypeList:
+		return "List"
+	case query.NodeTypeIdentifier:
+		sym, found := a.FindDefinition(doc, node, doc.Content(node))
+		if found {
+			switch sym.Kind {
+			case protocol.SymbolKindString:
+				return "String"
+			case protocol.SymbolKindObject:
+				return "Dict"
+			case protocol.SymbolKindArray:
+				return "List"
+			}
+		}
+	case query.NodeTypeCall:
+		fnName := doc.Content(node.ChildByFieldName("function"))
+		sig, found := a.signatureInformation(doc, node, fnName)
+		if found && sig.ReturnType != "" {
+			switch strings.ToLower(sig.ReturnType) {
+			case "str", "string":
+				return "String"
+			case "list":
+				return "List"
+			case "dict":
+				return "Dict"
+			default:
+				return sig.ReturnType
+			}
+		}
+	}
+	return ""
+}
+
+func (a *Analyzer) availableMembers(doc document.Document, node *sitter.Node) []query.Symbol {
+	if t := a.analyzeType(doc, node); t != "" {
+		if class, found := a.builtins.Types[t]; found {
+			return class.Members
+		}
+	}
+	return a.builtins.Members
+}
+
+func (a *Analyzer) FindDefinition(doc document.Document, node *sitter.Node, name string) (query.Symbol, bool) {
+	for _, sym := range query.SymbolsInScope(doc, node) {
+		if sym.Name == name {
+			return sym, true
+		}
+	}
+	for _, sym := range doc.Symbols() {
+		if sym.Name == name {
+			return sym, true
+		}
+	}
+	for _, sym := range a.builtins.Symbols {
+		if sym.Name == name {
+			return sym, true
+		}
+	}
+	return query.Symbol{}, false
 }
 
 func keywordArgContext(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {
