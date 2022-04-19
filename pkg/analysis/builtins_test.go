@@ -55,9 +55,9 @@ func TestLoadBuiltinsFromFile(t *testing.T) {
 			require.NoError(t, err)
 			switch test.ttype {
 			case testTypeFunctions:
-				assertContainsAll(t, test.expected, builtins.FunctionNames())
+				assertContainsAll(t, test.expected, mapKeys(builtins.Functions))
 			case testTypeSymbols:
-				assertContainsAll(t, test.expected, builtins.SymbolNames())
+				assertContainsAll(t, test.expected, symbolNames(builtins.Symbols))
 			}
 		})
 	}
@@ -70,8 +70,8 @@ func TestLoadBuiltinsFromFS(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
-	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	assert.Equal(t, []string{"os.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
 	assert.Equal(t, 2, len(osSym.Children))
@@ -90,8 +90,8 @@ func TestLoadBuiltinsFromFSEmbed(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, testDir)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
-	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	assert.Equal(t, []string{"os.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
 	assert.Equal(t, 2, len(osSym.Children))
@@ -101,6 +101,13 @@ func TestLoadBuiltinsFromFSEmbed(t *testing.T) {
 	getcwdSym := osSym.Children[1]
 	assert.Equal(t, "getcwd", getcwdSym.Name)
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
+
+	assert.Equal(t, 1, len(builtins.Methods))
+	assert.Equal(t, []string{"curl"}, mapKeys(builtins.Methods))
+	assert.Equal(t, []string{"curl", "url"}, symbolNames(builtins.Members))
+
+	assert.Equal(t, 1, len(builtins.Types))
+	assert.Equal(t, []string{"Link"}, mapKeys(builtins.Types))
 }
 
 func TestLoadBuiltinsFromFSInit(t *testing.T) {
@@ -110,8 +117,8 @@ func TestLoadBuiltinsFromFSInit(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"getcwd"}, builtins.FunctionNames())
-	assertContainsAll(t, []string{"environ", "getcwd"}, builtins.SymbolNames())
+	assert.Equal(t, []string{"getcwd"}, mapKeys(builtins.Functions))
+	assertContainsAll(t, []string{"environ", "getcwd"}, symbolNames(builtins.Symbols))
 }
 
 func TestLoadBuiltinsFromFSDirectory(t *testing.T) {
@@ -122,8 +129,8 @@ func TestLoadBuiltinsFromFSDirectory(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.getcwd"}, builtins.FunctionNames())
-	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	assert.Equal(t, []string{"os.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
 	assert.Equal(t, 2, len(osSym.Children))
@@ -153,7 +160,7 @@ func TestLoadBuiltinsFromFSMultipleModules(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
 	assert.Equal(t, 3, len(osSym.Children))
@@ -176,8 +183,8 @@ func TestLoadBuiltinsFromFSDirectoryFile(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.fns.getcwd"}, builtins.FunctionNames())
-	assert.Equal(t, []string{"os"}, builtins.SymbolNames())
+	assert.Equal(t, []string{"os.fns.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
 	assert.Equal(t, 1, len(osSym.Children))
