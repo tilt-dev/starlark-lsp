@@ -123,6 +123,14 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 		}
 	}
 
+	if len(symbols) == 0 {
+		lastId := identifiers[len(identifiers)-1]
+		_, dot := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+		if dot != nil {
+			symbols = append(symbols, SymbolsStartingWith(a.builtins.Members, lastId)...)
+		}
+	}
+
 	return symbols
 }
 
@@ -275,6 +283,54 @@ func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callArguments) []q
 		}
 	}
 	return symbols
+}
+
+// Find the object and the dot '.' of an attribute expression immediately before the given point.
+func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Point) (expr *sitter.Node, dot *sitter.Node) {
+	if pt.Column == 0 {
+		return nil, nil
+	}
+
+	searchRange := sitter.Range{StartPoint: sitter.Point{Row: pt.Row, Column: pt.Column - 1}, EndPoint: pt}
+	var parentNode *sitter.Node
+	for i := len(nodes) - 1; i >= 0; i-- {
+		parentNode = nodes[i]
+		dot = query.FindChildNode(parentNode, func(n *sitter.Node) int {
+			if query.PointBeforeOrEqual(n.EndPoint(), searchRange.StartPoint) {
+				return -1
+			}
+			if n.StartPoint() == searchRange.StartPoint &&
+				n.EndPoint() == searchRange.EndPoint &&
+				n.Type() == "." {
+				return 0
+			}
+			if query.PointBeforeOrEqual(n.StartPoint(), searchRange.StartPoint) &&
+				query.PointAfterOrEqual(n.EndPoint(), searchRange.EndPoint) {
+				return 0
+			}
+			return 1
+		})
+		if dot != nil {
+			break
+		}
+	}
+	if dot != nil {
+		expr = parentNode.PrevSibling()
+		for n := dot; n != parentNode; n = n.Parent() {
+			if n.PrevSibling() != nil {
+				expr = n.PrevSibling()
+				break
+			}
+		}
+
+		if expr != nil {
+			a.logger.Debug("dot completion",
+				zap.String("dot", dot.String()),
+				zap.String("expr", expr.String()))
+			return expr, dot
+		}
+	}
+	return nil, nil
 }
 
 func keywordArgContext(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {

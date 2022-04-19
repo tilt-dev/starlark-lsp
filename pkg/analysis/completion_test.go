@@ -273,3 +273,26 @@ func TestKeywordArgCompletion(t *testing.T) {
 		})
 	}
 }
+
+func TestMemberCompletion(t *testing.T) {
+	f := newFixture(t)
+	_ = WithStarlarkBuiltins()(f.a)
+
+	tests := []struct {
+		doc        string
+		line, char uint32
+		expected   []string
+	}{
+		{doc: "pr", char: 2, expected: []string{"print"}},
+		{doc: "pr.end", char: 6, expected: []string{"endswith"}},
+		{doc: `"".isa`, char: 5, expected: []string{"isalnum", "isalpha"}},
+		{doc: `[].ex`, char: 5, expected: []string{"extend"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			f.Document(tt.doc)
+			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			assertCompletionResult(t, tt.expected, result)
+		})
+	}
+}
