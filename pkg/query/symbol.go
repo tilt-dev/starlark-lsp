@@ -56,7 +56,7 @@ func ExtractAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 	symbol.Kind = kind
 	symbol.Location = protocol.Location{
 		Range: NodeRange(n),
-		// TODO add URI
+		URI:   doc.URI(),
 	}
 
 	// Look for possible docstring for the assigned variable
