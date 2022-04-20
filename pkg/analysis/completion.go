@@ -379,6 +379,10 @@ func (a *Analyzer) availableMembers(doc document.Document, node *sitter.Node) []
 		if class, found := a.builtins.Types[t]; found {
 			return class.Members
 		}
+		switch t {
+		case "None", "bool", "int", "float":
+			return []query.Symbol{}
+		}
 	}
 	return a.builtins.Members
 }

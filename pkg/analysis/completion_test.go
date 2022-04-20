@@ -305,6 +305,10 @@ func TestTypedMemberCompletion(t *testing.T) {
 		Name:       "foo",
 		ReturnType: "str",
 	}
+	f.builtins.Functions["bar"] = query.Signature{
+		Name:       "bar",
+		ReturnType: "None",
+	}
 
 	tests := []struct {
 		doc        string
@@ -321,6 +325,7 @@ s.c`, line: 1, char: 3, expected: []string{"clear"}},
 		{doc: `s = {}
 s.i`, line: 1, char: 3, expected: []string{"items"}},
 		{doc: `foo().c`, char: 7, expected: []string{"capitalize", "count"}},
+		{doc: `bar().`, char: 6, expected: []string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
