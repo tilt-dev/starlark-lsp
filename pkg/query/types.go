@@ -17,23 +17,23 @@ const methodsAndFields = `
 )
 `
 
-type Class struct {
+type Type struct {
 	Name    string
 	Methods []Signature
 	Fields  []Symbol
 	Members []Symbol
 }
 
-func Classes(doc DocumentContent, node *sitter.Node) []Class {
-	classes := []Class{}
+func Types(doc DocumentContent, node *sitter.Node) []Type {
+	types := []Type{}
 	Query(node, []byte(methodsAndFields), func(q *sitter.Query, match *sitter.QueryMatch) bool {
-		curr := Class{}
+		curr := Type{}
 		for _, c := range match.Captures {
 			switch q.CaptureNameForId(c.Index) {
 			case "name":
 				curr.Name = doc.Content(c.Node)
 			case "field":
-				field := ExtractAssignment(doc, c.Node)
+				field := ExtractVariableAssignment(doc, c.Node)
 				curr.Fields = append(curr.Fields, field)
 				curr.Members = append(curr.Members, field)
 			case "method":
@@ -49,10 +49,10 @@ func Classes(doc DocumentContent, node *sitter.Node) []Class {
 			}
 		}
 		if curr.Name != "" && (len(curr.Methods) > 0 || len(curr.Fields) > 0) {
-			classes = append(classes, curr)
+			types = append(types, curr)
 		}
 		return true
 	})
 
-	return classes
+	return types
 }

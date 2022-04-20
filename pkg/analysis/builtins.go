@@ -23,7 +23,7 @@ import (
 type Builtins struct {
 	Functions map[string]query.Signature
 	Symbols   []query.Symbol
-	Types     map[string]query.Class
+	Types     map[string]query.Type
 	Methods   map[string]query.Signature
 	Members   []query.Symbol
 }
@@ -53,7 +53,7 @@ func NewBuiltins() *Builtins {
 	return &Builtins{
 		Functions: make(map[string]query.Signature),
 		Symbols:   []query.Symbol{},
-		Types:     make(map[string]query.Class),
+		Types:     make(map[string]query.Type),
 		Methods:   make(map[string]query.Signature),
 		Members:   []query.Symbol{},
 	}
@@ -140,16 +140,16 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 	functions := doc.Functions()
 	symbols := doc.Symbols()
 
-	classes := query.Classes(doc, tree.RootNode())
-	types := make(map[string]query.Class)
-	methods := make(map[string]query.Signature)
+	types := query.Types(doc, tree.RootNode())
+	typeMap := make(map[string]query.Type)
+	methodMap := make(map[string]query.Signature)
 	members := []query.Symbol{}
-	for _, c := range classes {
-		types[c.Name] = c
-		for _, method := range c.Methods {
-			methods[method.Name] = method
+	for _, t := range types {
+		typeMap[t.Name] = t
+		for _, method := range t.Methods {
+			methodMap[method.Name] = method
 		}
-		members = append(members, c.Members...)
+		members = append(members, t.Members...)
 	}
 
 	doc.Close()
@@ -157,8 +157,8 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 	return &Builtins{
 		Functions: functions,
 		Symbols:   symbols,
-		Types:     types,
-		Methods:   methods,
+		Types:     typeMap,
+		Methods:   methodMap,
 		Members:   members,
 	}, nil
 }

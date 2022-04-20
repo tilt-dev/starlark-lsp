@@ -17,7 +17,7 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
 
 		switch n.Type() {
 		case NodeTypeExpressionStatement:
-			symbol = ExtractAssignment(doc, n)
+			symbol = ExtractVariableAssignment(doc, n)
 		case NodeTypeFunctionDef:
 			sig := ExtractSignature(doc, n)
 			symbol = sig.Symbol()
@@ -31,7 +31,7 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
 	return symbols
 }
 
-func ExtractAssignment(doc DocumentContent, n *sitter.Node) Symbol {
+func ExtractVariableAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 	if n.Type() != NodeTypeExpressionStatement {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}

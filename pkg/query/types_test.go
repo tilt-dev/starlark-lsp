@@ -9,7 +9,7 @@ import (
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
-func TestClasses(t *testing.T) {
+func TestStarlarkTypes(t *testing.T) {
 	code := `
 class Student():
     """A sleepy student."""
@@ -21,7 +21,7 @@ class Student():
 `
 	f := newQueryFixture(t, nil, code)
 	doc := f.document()
-	classes := query.Classes(doc, f.root)
+	classes := query.Types(doc, f.root)
 	assert.Equal(t, 1, len(classes))
 	if len(classes) == 1 {
 		class := classes[0]
@@ -41,7 +41,7 @@ class Student():
 	}
 }
 
-func TestEmptyClass(t *testing.T) {
+func TestTypesEmptyClass(t *testing.T) {
 	code := `
 class Student():
     """A sleepy student."""
@@ -49,6 +49,6 @@ class Student():
 `
 	f := newQueryFixture(t, nil, code)
 	doc := f.document()
-	classes := query.Classes(doc, f.root)
+	classes := query.Types(doc, f.root)
 	assert.Equal(t, 0, len(classes))
 }
