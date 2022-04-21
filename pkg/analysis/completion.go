@@ -143,8 +143,8 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []query.Symbol {
 	symbols := []query.Symbol{}
 	if nodeAtPoint != nil {
-		if fnName, args := keywordArgContext(doc, nodeAtPoint, pt); fnName != "" {
-			if fn, ok := a.signatureInformation(doc, nodeAtPoint, fnName); ok {
+		if args := keywordArgContext(doc, nodeAtPoint, pt); args.fnName != "" {
+			if fn, ok := a.signatureInformation(doc, nodeAtPoint, args); ok {
 				symbols = append(symbols, a.keywordArgSymbols(fn, args)...)
 			}
 		}
@@ -267,7 +267,7 @@ func (a *Analyzer) leafNodesForCompletion(doc document.Document, node *sitter.No
 	return nodes, true
 }
 
-func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callArguments) []query.Symbol {
+func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callWithArguments) []query.Symbol {
 	symbols := []query.Symbol{}
 	for i, param := range fn.Params {
 		if i < int(args.positional) {
@@ -336,6 +336,9 @@ func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Poin
 
 // Perform some rudimentary type analysis to determine the Starlark type of the node
 func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string {
+	if node == nil {
+		return ""
+	}
 	switch node.Type() {
 	case query.NodeTypeString:
 		return "String"
@@ -357,7 +360,8 @@ func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string 
 		}
 	case query.NodeTypeCall:
 		fnName := doc.Content(node.ChildByFieldName("function"))
-		sig, found := a.signatureInformation(doc, node, fnName)
+		args := node.ChildByFieldName("arguments")
+		sig, found := a.signatureInformation(doc, node, callWithArguments{fnName: fnName, argsNode: args})
 		if found && sig.ReturnType != "" {
 			switch strings.ToLower(sig.ReturnType) {
 			case "str", "string":
@@ -406,12 +410,12 @@ func (a *Analyzer) FindDefinition(doc document.Document, node *sitter.Node, name
 	return query.Symbol{}, false
 }
 
-func keywordArgContext(doc document.Document, node *sitter.Node, pt sitter.Point) (fnName string, args callArguments) {
+func keywordArgContext(doc document.Document, node *sitter.Node, pt sitter.Point) callWithArguments {
 	if node.Type() == "=" ||
 		query.HasAncestor(node, func(anc *sitter.Node) bool {
 			return anc.Type() == query.NodeTypeKeywordArgument
 		}) {
-		return "", callArguments{}
+		return callWithArguments{}
 	}
 	return possibleCallInfo(doc, node, pt)
 }

@@ -74,3 +74,19 @@ func TestMethodSignatureHelp(t *testing.T) {
 	assert.Equal(t, "(suffix)", help.Signatures[0].Label)
 	assert.Equal(t, uint32(0), help.ActiveParameter)
 }
+
+func TestTypedMethodSignatureHelp(t *testing.T) {
+	f := newFixture(t)
+	_ = WithStarlarkBuiltins()(f.a)
+	f.Document(`d = {}
+d.pop()`)
+	pos := protocol.Position{Line: 1, Character: 6}
+	help := f.a.SignatureHelp(f.doc, pos)
+	assert.NotNil(t, help)
+	if help == nil {
+		return
+	}
+	assert.Equal(t, 1, len(help.Signatures))
+	assert.Equal(t, "(key)", help.Signatures[0].Label)
+	assert.Equal(t, uint32(0), help.ActiveParameter)
+}

@@ -24,6 +24,15 @@ type Type struct {
 	Members []Symbol
 }
 
+func (t Type) FindMethod(name string) (Signature, bool) {
+	for _, m := range t.Methods {
+		if m.Name == name {
+			return m, true
+		}
+	}
+	return Signature{}, false
+}
+
 func Types(doc DocumentContent, node *sitter.Node) []Type {
 	types := []Type{}
 	Query(node, []byte(methodsAndFields), func(q *sitter.Query, match *sitter.QueryMatch) bool {
