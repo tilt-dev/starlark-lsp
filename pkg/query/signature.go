@@ -102,7 +102,7 @@ func (s Signature) Symbol() Symbol {
 	return Symbol{
 		Name:   s.Name,
 		Kind:   protocol.SymbolKindFunction,
-		Detail: s.Label(),
+		Detail: s.Docs.Description,
 		Location: protocol.Location{
 			URI:   s.docURI,
 			Range: s.Range,
