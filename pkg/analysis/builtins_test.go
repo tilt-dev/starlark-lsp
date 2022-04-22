@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.lsp.dev/protocol"
+	"go.lsp.dev/uri"
 	"go.uber.org/zap/zaptest"
 
 	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
@@ -200,12 +201,13 @@ func TestLoadBuiltinsFromFSDirectoryFile(t *testing.T) {
 }
 
 type fixture struct {
-	t        *testing.T
-	ctx      context.Context
-	a        *Analyzer
-	dir      string
-	builtins *Builtins
-	doc      document.Document
+	t          *testing.T
+	ctx        context.Context
+	a          *Analyzer
+	dir        string
+	builtins   *Builtins
+	docs       *document.Manager
+	docContent map[uri.URI]string
 }
 
 func assertContainsAll(t *testing.T, expected []string, actual []string) {
@@ -271,15 +273,22 @@ func (f *fixture) Symbol(name string) query.Symbol {
 	}
 }
 
-func (f *fixture) Document(content string) {
-	tree, _ := query.Parse(f.ctx, []byte(content))
-	doc := document.NewDocument("", []byte(content), tree)
+func (f *fixture) Document(name string, content string) document.Document {
+	u := uri.File(name)
+	_, err := f.docs.Write(f.ctx, u, []byte(content))
+	require.NoError(f.t, err)
+	doc, err := f.docs.Read(f.ctx, u)
+	require.NoError(f.t, err)
 	f.t.Cleanup(func() { doc.Close() })
-	f.doc = doc
+	return doc
+}
+
+func (f *fixture) MainDoc(content string) document.Document {
+	return f.Document("Tiltfile.test", content)
 }
 
 func (f *fixture) ParseBuiltins(content string) {
-	builtins, err := LoadBuiltinsFromSource(f.ctx, []byte(functionFixture), "__test__")
+	builtins, err := LoadBuiltinsFromSource(f.ctx, []byte(content), "__test__")
 	require.NoError(f.t, err)
 	f.a.builtins = builtins
 	f.builtins = builtins
@@ -299,11 +308,15 @@ func newFixture(t *testing.T) *fixture {
 	a, _ := NewAnalyzer(ctx)
 	a.builtins = builtins
 
-	return &fixture{
+	f := &fixture{
 		ctx:      ctx,
 		t:        t,
 		dir:      t.TempDir(),
 		builtins: builtins,
 		a:        a,
 	}
+
+	f.docs = document.NewDocumentManager()
+
+	return f
 }

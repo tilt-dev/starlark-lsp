@@ -39,17 +39,16 @@ func TestSignatureHelp(t *testing.T) {
 		{args: "(1, d=True, c=)", active: 2},
 	}
 
-	f := newFixture(t)
-
 	for i, test := range tt {
-		f.Document(fmt.Sprintf(fooDoc, test.args))
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			f := newFixture(t)
+			doc := f.MainDoc(fmt.Sprintf(fooDoc, test.args))
 			ch := uint32(3 + len(test.args))
 			if strings.HasSuffix(test.args, ")") {
 				ch -= 1
 			}
 			pos := protocol.Position{Line: 4, Character: ch}
-			help := f.a.SignatureHelp(f.doc, pos)
+			help := f.a.SignatureHelp(doc, pos)
 			assert.NotNil(t, help)
 			if help == nil {
 				return
@@ -64,8 +63,8 @@ func TestSignatureHelp(t *testing.T) {
 func TestMethodSignatureHelp(t *testing.T) {
 	f := newFixture(t)
 	_ = WithStarlarkBuiltins()(f.a)
-	f.Document(`"".endswith()`)
-	help := f.a.SignatureHelp(f.doc, protocol.Position{Character: 12})
+	doc := f.MainDoc(`"".endswith()`)
+	help := f.a.SignatureHelp(doc, protocol.Position{Character: 12})
 	assert.NotNil(t, help)
 	if help == nil {
 		return
@@ -78,10 +77,10 @@ func TestMethodSignatureHelp(t *testing.T) {
 func TestTypedMethodSignatureHelp(t *testing.T) {
 	f := newFixture(t)
 	_ = WithStarlarkBuiltins()(f.a)
-	f.Document(`d = {}
+	doc := f.MainDoc(`d = {}
 d.pop()`)
 	pos := protocol.Position{Line: 1, Character: 6}
-	help := f.a.SignatureHelp(f.doc, pos)
+	help := f.a.SignatureHelp(doc, pos)
 	assert.NotNil(t, help)
 	if help == nil {
 		return

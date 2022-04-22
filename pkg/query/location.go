@@ -52,6 +52,17 @@ func NodesRange(nodes []*sitter.Node) protocol.Range {
 	}
 }
 
+func SitterRange(r protocol.Range) sitter.Range {
+	return sitter.Range{
+		StartPoint: PositionToPoint(r.Start),
+		EndPoint:   PositionToPoint(r.End),
+	}
+}
+
+func RangeContainsPoint(r sitter.Range, p sitter.Point) bool {
+	return PointAfterOrEqual(p, r.StartPoint) && PointBeforeOrEqual(p, r.EndPoint)
+}
+
 func PointCmp(a, b sitter.Point) int {
 	if a.Row < b.Row {
 		return -1

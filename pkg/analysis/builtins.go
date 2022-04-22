@@ -154,6 +154,12 @@ func LoadBuiltinsFromSource(ctx context.Context, contents []byte, path string) (
 
 	doc.Close()
 
+	// NewDocument returns these symbols with a location of __init__.py, which isn't helpful to anyone
+	for i, s := range symbols {
+		s.Location = protocol.Location{}
+		symbols[i] = s
+	}
+
 	return &Builtins{
 		Functions: functions,
 		Symbols:   symbols,

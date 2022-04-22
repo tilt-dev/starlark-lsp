@@ -132,6 +132,7 @@ func ExtractSignature(doc DocumentContent, n *sitter.Node) Signature {
 		ReturnType: returnType,
 		Docs:       fnDocs,
 		Range:      NodeRange(n),
+		docURI:     doc.URI(),
 	}
 }
 

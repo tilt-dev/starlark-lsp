@@ -142,3 +142,8 @@ type Symbol struct {
 	SelectionRange protocol.Range
 	Children       []Symbol
 }
+
+// builtins (e.g., `False`, `k8s_resource`) have no location
+func (s Symbol) HasLocation() bool {
+	return s.Location.URI != ""
+}

@@ -39,12 +39,12 @@ func TestSimpleCompletion(t *testing.T) {
 
 	f.Symbols("foo", "bar", "baz")
 
-	f.Document("")
-	result := f.a.Completion(f.doc, protocol.Position{})
+	doc := f.MainDoc("")
+	result := f.a.Completion(doc, protocol.Position{})
 	assertCompletionResult(t, []string{"foo", "bar", "baz"}, result)
 
-	f.Document("ba")
-	result = f.a.Completion(f.doc, protocol.Position{Character: 2})
+	doc = f.MainDoc("ba")
+	result = f.a.Completion(doc, protocol.Position{Character: 2})
 	assertCompletionResult(t, []string{"bar", "baz"}, result)
 }
 
@@ -140,16 +140,14 @@ func TestCompletions(t *testing.T) {
 			if tt.osSys {
 				f.osSysSymbols()
 			}
-			f.Document(tt.doc)
-			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			doc := f.MainDoc(tt.doc)
+			result := f.a.Completion(doc, protocol.Position{Line: tt.line, Character: tt.char})
 			assertCompletionResult(t, tt.expected, result)
 		})
 	}
 }
 
 func TestIdentifierCompletion(t *testing.T) {
-	f := newFixture(t)
-
 	tests := []struct {
 		doc      string
 		col      uint32
@@ -176,11 +174,12 @@ func TestIdentifierCompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
-			f.Document(tt.doc)
+			f := newFixture(t)
+			doc := f.MainDoc(tt.doc)
 			pt := sitter.Point{Column: tt.col}
-			nodes, ok := f.a.nodesAtPointForCompletion(f.doc, pt)
+			nodes, ok := f.a.nodesAtPointForCompletion(doc, pt)
 			assert.True(t, ok)
-			ids := query.ExtractIdentifiers(f.doc, nodes, nil)
+			ids := query.ExtractIdentifiers(doc, nodes, nil)
 			assert.ElementsMatch(t, tt.expected, ids)
 		})
 	}
@@ -226,9 +225,6 @@ fn(b=1,)
 `
 
 func TestKeywordArgCompletion(t *testing.T) {
-	f := newFixture(t)
-	f.ParseBuiltins(functionFixture)
-
 	tests := []struct {
 		doc        string
 		line, char uint32
@@ -267,8 +263,11 @@ func TestKeywordArgCompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
-			f.Document(tt.doc)
-			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			f := newFixture(t)
+			f.ParseBuiltins(functionFixture)
+
+			doc := f.MainDoc(tt.doc)
+			result := f.a.Completion(doc, protocol.Position{Line: tt.line, Character: tt.char})
 			assertCompletionResult(t, tt.expected, result)
 		})
 	}
@@ -290,8 +289,8 @@ func TestMemberCompletion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
-			f.Document(tt.doc)
-			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			doc := f.MainDoc(tt.doc)
+			result := f.a.Completion(doc, protocol.Position{Line: tt.line, Character: tt.char})
 			assertCompletionResult(t, tt.expected, result)
 		})
 	}
@@ -329,8 +328,8 @@ s.i`, line: 1, char: 3, expected: []string{"items"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
-			f.Document(tt.doc)
-			result := f.a.Completion(f.doc, protocol.Position{Line: tt.line, Character: tt.char})
+			doc := f.MainDoc(tt.doc)
+			result := f.a.Completion(doc, protocol.Position{Line: tt.line, Character: tt.char})
 			assertCompletionResult(t, tt.expected, result)
 		})
 	}
