@@ -70,7 +70,7 @@ func TestMethodSignatureHelp(t *testing.T) {
 		return
 	}
 	assert.Equal(t, 1, len(help.Signatures))
-	assert.Equal(t, "(suffix)", help.Signatures[0].Label)
+	assert.Equal(t, "(suffix) -> bool", help.Signatures[0].Label)
 	assert.Equal(t, uint32(0), help.ActiveParameter)
 }
 
