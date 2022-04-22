@@ -201,13 +201,12 @@ func TestLoadBuiltinsFromFSDirectoryFile(t *testing.T) {
 }
 
 type fixture struct {
-	t          *testing.T
-	ctx        context.Context
-	a          *Analyzer
-	dir        string
-	builtins   *Builtins
-	docs       *document.Manager
-	docContent map[uri.URI]string
+	t        *testing.T
+	ctx      context.Context
+	a        *Analyzer
+	dir      string
+	builtins *Builtins
+	docs     *document.Manager
 }
 
 func assertContainsAll(t *testing.T, expected []string, actual []string) {
