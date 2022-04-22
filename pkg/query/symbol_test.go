@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
 	"github.com/tilt-dev/starlark-lsp/pkg/query"
 )
 
@@ -17,7 +16,7 @@ y = None
 z = True
 `)
 
-	doc := document.NewDocument("", f.input, f.tree)
+	doc := f.document()
 	symbols := query.DocumentSymbols(doc)
 	names := make([]string, len(symbols))
 	for i, sym := range symbols {
@@ -39,7 +38,7 @@ def start():
   pass
 `)
 
-	doc := document.NewDocument("", f.input, f.tree)
+	doc := f.document()
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SiblingSymbols(doc, n.Parent().NamedChild(0), nil)
@@ -63,7 +62,7 @@ def start():
   pass
 `)
 
-	doc := document.NewDocument("", f.input, f.tree)
+	doc := f.document()
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SymbolsInScope(doc, n)
@@ -88,7 +87,7 @@ def start():
   pass
 `)
 
-	doc := document.NewDocument("", f.input, f.tree)
+	doc := f.document()
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SymbolsInScope(doc, n)
@@ -109,7 +108,7 @@ def foo(a, b=True, c=None):
   pass
 `)
 
-	doc := document.NewDocument("", f.input, f.tree)
+	doc := f.document()
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 5, Character: 2})
 	assert.True(t, ok)
 	symbols := query.SymbolsInScope(doc, n)
@@ -130,7 +129,7 @@ def foo(a, b=True, c=None):
   pass
 `)
 
-	doc := document.NewDocument("", f.input, f.tree)
+	doc := f.document()
 	n, ok := query.NamedNodeAtPosition(doc, protocol.Position{Line: 4, Character: 4})
 	assert.True(t, ok)
 	symbols := query.SymbolsInScope(doc, n)

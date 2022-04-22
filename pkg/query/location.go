@@ -140,3 +140,25 @@ func NodeAtPoint(doc DocumentContent, pt sitter.Point) (*sitter.Node, bool) {
 	}
 	return ChildNodeAtPoint(pt, namedNode)
 }
+
+// Find the deepest child node for which `compare` returns 0.
+// Compare should return:
+// - `-1` if the node is located before the range of interest
+// - `0` if the node covers the range of interest
+// - `1` if the node is located after the range of interest
+func FindChildNode(node *sitter.Node, compare func(*sitter.Node) int) *sitter.Node {
+	childCount := int(node.ChildCount())
+	for i := 0; i < childCount; i++ {
+		child := node.Child(i)
+		cmp := compare(child)
+		if cmp == 0 {
+			if child.ChildCount() == 0 {
+				return child
+			}
+			return FindChildNode(child, compare)
+		} else if cmp > 0 {
+			break
+		}
+	}
+	return nil
+}

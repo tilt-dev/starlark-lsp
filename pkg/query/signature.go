@@ -56,7 +56,7 @@ type Signature struct {
 	ReturnType string
 	Docs       docstring.Parsed
 	docURI     uri.URI
-	Node       *sitter.Node
+	Range      protocol.Range
 }
 
 func (s Signature) SignatureInfo() protocol.SignatureInformation {
@@ -102,10 +102,10 @@ func (s Signature) Symbol() Symbol {
 	return Symbol{
 		Name:   s.Name,
 		Kind:   protocol.SymbolKindFunction,
-		Detail: s.Label(),
+		Detail: s.Docs.Description,
 		Location: protocol.Location{
 			URI:   s.docURI,
-			Range: NodeRange(s.Node),
+			Range: s.Range,
 		},
 	}
 }
@@ -131,7 +131,7 @@ func ExtractSignature(doc DocumentContent, n *sitter.Node) Signature {
 		Params:     params,
 		ReturnType: returnType,
 		Docs:       fnDocs,
-		Node:       n,
+		Range:      NodeRange(n),
 	}
 }
 

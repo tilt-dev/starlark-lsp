@@ -10,10 +10,11 @@ func ExtractIdentifiers(doc DocumentContent, nodes []*sitter.Node, limit *sitter
 	for i, node := range nodes {
 		switch node.Type() {
 		case ".":
-			// if first node is a '.' then append as a '.' to indicate an
-			// attribute expression attached to some other expression
-			if i == 0 {
-				identifiers = append(identifiers, ".")
+			// if we haven't seen any identifiers before this '.', then append
+			// a "" to indicate an attribute expression attached to some
+			// other expression
+			if len(identifiers) == 0 {
+				identifiers = append(identifiers, "")
 			}
 			// if last node is a '.' then append an empty identifier for attribute matching
 			if i == len(nodes)-1 {
@@ -33,6 +34,10 @@ func ExtractIdentifiers(doc DocumentContent, nodes []*sitter.Node, limit *sitter
 							identifiers = append(identifiers, "")
 						} else {
 							identifiers = append(identifiers, doc.Content(c.Node))
+						}
+					case "dot":
+						if len(identifiers) == 0 {
+							identifiers = append(identifiers, "")
 						}
 					case "trailing-dot":
 						identifiers = append(identifiers, "")
