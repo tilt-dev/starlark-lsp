@@ -35,7 +35,7 @@ func (t Type) FindMethod(name string) (Signature, bool) {
 
 func Types(doc DocumentContent, node *sitter.Node) []Type {
 	types := []Type{}
-	Query(node, []byte(methodsAndFields), func(q *sitter.Query, match *sitter.QueryMatch) bool {
+	Query(node, methodsAndFields, func(q *sitter.Query, match *sitter.QueryMatch) bool {
 		curr := Type{}
 		for _, c := range match.Captures {
 			switch q.CaptureNameForId(c.Index) {

@@ -37,7 +37,7 @@ world"`, "helloworld"},
 	}
 	for i, tt := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			q := newQueryFixture(t, nil, tt[0])
+			q := newQueryFixture(t, "", tt[0])
 			v := query.Unquote(q.input, q.root)
 			assert.Equal(t, tt[1], v)
 		})
@@ -45,7 +45,7 @@ world"`, "helloworld"},
 }
 
 func TestUnquotePanic(t *testing.T) {
-	q := newQueryFixture(t, nil, `hello`)
+	q := newQueryFixture(t, "", `hello`)
 	defer func() {
 		e := recover().(error)
 		assert.NotNil(t, e)

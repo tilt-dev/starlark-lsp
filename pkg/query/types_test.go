@@ -19,7 +19,7 @@ class Student():
         """Tell student to sleep."""
         pass
 `
-	f := newQueryFixture(t, nil, code)
+	f := newQueryFixture(t, "", code)
 	doc := f.document()
 	classes := query.Types(doc, f.root)
 	assert.Equal(t, 1, len(classes))
@@ -47,7 +47,7 @@ class Student():
     """A sleepy student."""
     pass
 `
-	f := newQueryFixture(t, nil, code)
+	f := newQueryFixture(t, "", code)
 	doc := f.document()
 	classes := query.Types(doc, f.root)
 	assert.Equal(t, 0, len(classes))

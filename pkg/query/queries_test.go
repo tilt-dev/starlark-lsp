@@ -104,7 +104,7 @@ func TestLeafNodes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.src, func(t *testing.T) {
-			q := newQueryFixture(t, []byte{}, tt.src)
+			q := newQueryFixture(t, "", tt.src)
 			nodes := query.LeafNodes(q.root)
 			names := make([]string, len(nodes))
 			types := make([]string, len(nodes))
@@ -120,7 +120,7 @@ func TestLeafNodes(t *testing.T) {
 }
 
 func TestLoadStatements(t *testing.T) {
-	q := newQueryFixture(t, []byte{}, `
+	q := newQueryFixture(t, "", `
 load("file1.star", "foo", "bar")
 if foo():
   load("file2.star", q="quux") # This is not a legal load statement but we still want to capture it
@@ -156,7 +156,7 @@ type queryFixture struct {
 	root  *sitter.Node
 }
 
-func newQueryFixture(t testing.TB, queryPattern []byte, src string) *queryFixture {
+func newQueryFixture(t testing.TB, queryPattern string, src string) *queryFixture {
 	t.Helper()
 
 	lang := python.GetLanguage()
@@ -164,7 +164,7 @@ func newQueryFixture(t testing.TB, queryPattern []byte, src string) *queryFixtur
 	var q *sitter.Query
 	var err error
 	if len(queryPattern) > 0 {
-		q, err = sitter.NewQuery(queryPattern, lang)
+		q, err = sitter.NewQuery([]byte(queryPattern), lang)
 		t.Cleanup(q.Close)
 		require.NoError(t, err, "Error creating query %q", string(queryPattern))
 	}
