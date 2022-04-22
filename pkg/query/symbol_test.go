@@ -10,7 +10,7 @@ import (
 )
 
 func TestQueryDocumentSymbols(t *testing.T) {
-	f := newQueryFixture(t, []byte{}, `
+	f := newQueryFixture(t, "", `
 x = a(3)
 y = None
 z = True
@@ -26,7 +26,7 @@ z = True
 }
 
 func TestQuerySiblingSymbols(t *testing.T) {
-	f := newQueryFixture(t, []byte{}, `
+	f := newQueryFixture(t, "", `
 def foo():
   bar = 1
   def baz():
@@ -50,7 +50,7 @@ def start():
 }
 
 func TestSymbolsInScope(t *testing.T) {
-	f := newQueryFixture(t, []byte{}, `
+	f := newQueryFixture(t, "", `
 def foo():
   bar = 1
   def baz():
@@ -74,7 +74,7 @@ def start():
 }
 
 func TestSymbolsInScopeExcludesFollowingSiblings(t *testing.T) {
-	f := newQueryFixture(t, []byte{}, `
+	f := newQueryFixture(t, "", `
 def foo():
   bar = 1
   def baz():
@@ -99,7 +99,7 @@ def start():
 }
 
 func TestSymbolsInScopeIncludesFunctionArguments1(t *testing.T) {
-	f := newQueryFixture(t, []byte{}, `
+	f := newQueryFixture(t, "", `
 def foo(a, b=True, c=None):
   bar = 1
   def baz(d):
@@ -120,7 +120,7 @@ def foo(a, b=True, c=None):
 }
 
 func TestSymbolsInScopeIncludesFunctionArguments2(t *testing.T) {
-	f := newQueryFixture(t, []byte{}, `
+	f := newQueryFixture(t, "", `
 def foo(a, b=True, c=None):
   bar = 1
   def baz(d):

@@ -4,6 +4,18 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
+// Extract all identifiers from the subtree. Include an extra empty identifier
+// "" if there is an error node with a trailing period.
+//
+const Identifiers = `
+[(module) @module
+ (identifier) @id
+ "." @dot
+ (ERROR "." @trailing-dot
+	.)
+ ]
+`
+
 func ExtractIdentifiers(doc DocumentContent, nodes []*sitter.Node, limit *sitter.Point) []string {
 	identifiers := []string{}
 

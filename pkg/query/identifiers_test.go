@@ -45,7 +45,7 @@ print("")`, expected: []string{"os", "path", ""}, limit: &sitter.Point{Column: 8
 
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
-			f := newQueryFixture(t, []byte{}, tt.doc)
+			f := newQueryFixture(t, "", tt.doc)
 			doc := f.document()
 			ids := query.ExtractIdentifiers(doc, []*sitter.Node{f.tree.RootNode()}, tt.limit)
 			assert.ElementsMatch(t, tt.expected, ids)
