@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.lsp.dev/protocol"
@@ -56,7 +58,7 @@ func TestLoadBuiltinsFromFile(t *testing.T) {
 			require.NoError(t, err)
 			switch test.ttype {
 			case testTypeFunctions:
-				assertContainsAll(t, test.expected, mapKeys(builtins.Functions))
+				assertContainsAll(t, test.expected, maps.Keys(builtins.Functions))
 			case testTypeSymbols:
 				assertContainsAll(t, test.expected, symbolNames(builtins.Symbols))
 			}
@@ -71,7 +73,7 @@ func TestLoadBuiltinsFromFS(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os.getcwd"}, maps.Keys(builtins.Functions))
 	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
@@ -91,7 +93,7 @@ func TestLoadBuiltinsFromFSEmbed(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, testDir)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os.getcwd"}, maps.Keys(builtins.Functions))
 	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
@@ -104,11 +106,11 @@ func TestLoadBuiltinsFromFSEmbed(t *testing.T) {
 	assert.Equal(t, protocol.SymbolKindMethod, getcwdSym.Kind)
 
 	assert.Equal(t, 1, len(builtins.Methods))
-	assert.Equal(t, []string{"curl"}, mapKeys(builtins.Methods))
+	assert.Equal(t, []string{"curl"}, maps.Keys(builtins.Methods))
 	assert.Equal(t, []string{"url", "curl"}, symbolNames(builtins.Members))
 
 	assert.Equal(t, 1, len(builtins.Types))
-	assert.Equal(t, []string{"Link"}, mapKeys(builtins.Types))
+	assert.Equal(t, []string{"Link"}, maps.Keys(builtins.Types))
 }
 
 func TestLoadBuiltinsFromFSInit(t *testing.T) {
@@ -118,7 +120,7 @@ func TestLoadBuiltinsFromFSInit(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"getcwd"}, maps.Keys(builtins.Functions))
 	assertContainsAll(t, []string{"environ", "getcwd"}, symbolNames(builtins.Symbols))
 }
 
@@ -130,7 +132,7 @@ func TestLoadBuiltinsFromFSDirectory(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os.getcwd"}, maps.Keys(builtins.Functions))
 	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
@@ -184,7 +186,7 @@ func TestLoadBuiltinsFromFSDirectoryFile(t *testing.T) {
 	builtins, err := LoadBuiltinsFromFS(fixture.ctx, os.DirFS(dir))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"os.fns.getcwd"}, mapKeys(builtins.Functions))
+	assert.Equal(t, []string{"os.fns.getcwd"}, maps.Keys(builtins.Functions))
 	assert.Equal(t, []string{"os"}, symbolNames(builtins.Symbols))
 	osSym := builtins.Symbols[0]
 	assert.Equal(t, protocol.SymbolKindVariable, osSym.Kind)
