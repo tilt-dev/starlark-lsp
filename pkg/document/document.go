@@ -200,10 +200,6 @@ func (d *document) processLoad(dep Document, load LoadStatement) {
 	for _, ls := range load.Symbols {
 		if sym, found := symMap[ls.Name]; found {
 			sym.Name = ls.Alias
-			sym.Location = protocol.Location{
-				URI:   d.uri,
-				Range: ls.Range,
-			}
 			d.symbols = append(d.symbols, sym)
 			if f, ok := fns[ls.Name]; ok {
 				d.functions[ls.Alias] = f

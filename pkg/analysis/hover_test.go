@@ -36,11 +36,11 @@ func TestBasicHover(t *testing.T) {
 			f.AddFunction("baz.quu", "desc3")
 			f.AddSymbol("qux.fd", "desc4")
 
-			f.Document(`foo(hello)
+			doc := f.MainDoc(`foo(hello)
 baz.quu(qux.fd)`)
 
-			result := f.a.Hover(f.ctx, f.doc, protocol.Position{Character: tc.char, Line: tc.line})
-			assertHoverResult(t, f.doc, tc.expectedHoverRangeContent, tc.expectedHoverContent, result)
+			result := f.a.Hover(f.ctx, doc, protocol.Position{Character: tc.char, Line: tc.line})
+			assertHoverResult(t, doc, tc.expectedHoverRangeContent, tc.expectedHoverContent, result)
 		})
 	}
 }
@@ -48,7 +48,7 @@ baz.quu(qux.fd)`)
 func TestHoverFuncDefinedInFile(t *testing.T) {
 	f := newFixture(t)
 
-	f.Document(`
+	doc := f.MainDoc(`
 def foo():
   """
   foos a bar
@@ -57,15 +57,15 @@ def foo():
 
 foo(hello)
 `)
-	result := f.a.Hover(f.ctx, f.doc, protocol.Position{Line: 7, Character: 2})
-	assertHoverResult(t, f.doc, "foo", "foos a bar", result)
+	result := f.a.Hover(f.ctx, doc, protocol.Position{Line: 7, Character: 2})
+	assertHoverResult(t, doc, "foo", "foos a bar", result)
 }
 
 func TestHoverNoMatch(t *testing.T) {
 	f := newFixture(t)
 
-	f.Document("foo(hello)")
-	result := f.a.Hover(f.ctx, f.doc, protocol.Position{Character: 6})
+	doc := f.MainDoc("foo(hello)")
+	result := f.a.Hover(f.ctx, doc, protocol.Position{Character: 6})
 	require.Nil(t, result)
 }
 
