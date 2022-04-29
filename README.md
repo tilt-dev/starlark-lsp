@@ -6,7 +6,7 @@ Starlark-lsp uses [go.lsp.dev][] and [Tree sitter][] as its main dependencies to
 
 ## Installing
 
-Ensure you have Go 1.17 or greater installed, then check out this repository and run `make install`.
+Ensure you have Go 1.18 or greater installed, then check out this repository and run `make install`.
 
 ## CLI
 
