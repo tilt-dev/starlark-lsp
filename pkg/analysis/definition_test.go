@@ -51,8 +51,7 @@ asdf
 print(y)
 `)
 
-			result, err := f.a.Definition(f.ctx, doc, protocol.Position{Character: tc.char, Line: tc.line})
-			require.NoError(t, err)
+			result := f.a.Definition(f.ctx, doc, protocol.Position{Character: tc.char, Line: tc.line})
 			if tc.expectedFile == "" {
 				require.Len(t, result, 0)
 			} else {
@@ -83,8 +82,7 @@ load('Tiltfile.include', 'foo')
 foo()
 `)
 
-	result, err := f.a.Definition(f.ctx, doc, protocol.Position{Line: 3, Character: 1})
-	require.NoError(t, err)
+	result := f.a.Definition(f.ctx, doc, protocol.Position{Line: 3, Character: 1})
 	require.Len(t, result, 1)
 	require.Equal(t, protocol.Location{
 		URI: uri.File("Tiltfile.include"),
@@ -105,7 +103,6 @@ func TestBuiltinDefinition(t *testing.T) {
 	f := newFixture(t)
 	f.AddSymbol("k8s_resource", "foo")
 	doc := f.MainDoc("k8s_resource()")
-	result, err := f.a.Definition(f.ctx, doc, protocol.Position{Character: 3})
-	require.NoError(t, err)
+	result := f.a.Definition(f.ctx, doc, protocol.Position{Character: 3})
 	require.Len(t, result, 0)
 }
