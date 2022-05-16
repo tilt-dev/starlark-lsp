@@ -314,16 +314,16 @@ func TestTypedMemberCompletion(t *testing.T) {
 		line, char uint32
 		expected   []string
 	}{
-		{doc: `"".c`, char: 4, expected: []string{"capitalize", "count"}},
+		{doc: `"".c`, char: 4, expected: []string{"capitalize", "codepoint_ords", "count", "codepoints"}},
 		{doc: `[].c`, char: 4, expected: []string{"clear"}},
 		{doc: `{}.i`, char: 4, expected: []string{"items"}},
 		{doc: `s = ""
-s.c`, line: 1, char: 3, expected: []string{"capitalize", "count"}},
+s.c`, line: 1, char: 3, expected: []string{"capitalize", "codepoint_ords", "count", "codepoints"}},
 		{doc: `s = []
 s.c`, line: 1, char: 3, expected: []string{"clear"}},
 		{doc: `s = {}
 s.i`, line: 1, char: 3, expected: []string{"items"}},
-		{doc: `foo().c`, char: 7, expected: []string{"capitalize", "count"}},
+		{doc: `foo().c`, char: 7, expected: []string{"capitalize", "codepoint_ords", "count", "codepoints"}},
 		{doc: `bar().`, char: 6, expected: []string{}},
 	}
 	for _, tt := range tests {
