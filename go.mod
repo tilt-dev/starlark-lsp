@@ -12,6 +12,7 @@ require (
 	go.lsp.dev/protocol v0.11.2
 	go.lsp.dev/uri v0.3.0
 	go.uber.org/zap v1.20.0
+	golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd
 )
 
 require (
@@ -24,6 +25,5 @@ require (
 	go.lsp.dev/pkg v0.0.0-20210323044036-f7deec69b52e // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
