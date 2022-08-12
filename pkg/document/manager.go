@@ -176,10 +176,8 @@ func (m *Manager) readAndParse(ctx context.Context, u uri.URI, parseState Docume
 }
 
 func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte, parseState DocumentMap) (doc Document, err error) {
-	cleanup := false
 	if parseState == nil {
 		parseState = make(DocumentMap)
-		cleanup = true
 	}
 
 	if _, parsed := parseState[uri]; parsed {
@@ -200,12 +198,8 @@ func (m *Manager) parse(ctx context.Context, uri uri.URI, input []byte, parseSta
 	if docx, ok := doc.(*document); ok {
 		docx.followLoads(ctx, m, parseState)
 	}
-
-	if cleanup {
-		for u, d := range parseState {
-			m.docs[u] = d
-		}
-	}
+	delete(parseState, uri)
+	m.docs[uri] = doc
 	return doc, err
 }
 

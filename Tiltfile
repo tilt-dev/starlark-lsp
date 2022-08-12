@@ -20,5 +20,5 @@ make('test', resource_deps=['run'])
 make(
     ['fmt', 'lint', 'tidy', 'install'],
     deps=src_dirs + ['go.mod', 'go.sum'],
-    resource_deps=['test']
+    resource_deps=['run']
 )

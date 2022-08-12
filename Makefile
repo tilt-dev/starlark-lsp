@@ -2,10 +2,10 @@
 
 test:
 ifneq ($(CIRCLECI),true)
-		go test -timeout 30s -v ./...
+	gotestsum -- ./... -timeout 30s
 else
-		mkdir -p test-results
-		gotestsum --format standard-quiet --junitfile test-results/unit-tests.xml -- ./... -timeout 30s
+	mkdir -p test-results
+	gotestsum --format standard-quiet --junitfile test-results/unit-tests.xml -- ./... -timeout 30s
 endif
 
 lint:
