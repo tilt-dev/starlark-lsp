@@ -3,7 +3,9 @@ package document
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -122,6 +124,77 @@ flag = True
 	diags := doc.Diagnostics()
 	fmt.Printf("diags: %v\n", diags)
 	assert.Equal(t, 0, len(diags))
+}
+
+func TestResolveURI(t *testing.T) {
+	f := newFixture(t)
+	t.Run("default resolve function", func(t *testing.T) {
+		file := uri.File("f.txt")
+		u, err := f.m.Resolve(file)
+		require.NoError(t, err)
+		assert.Equal(t, file, u)
+
+		_, err = f.m.Resolve("ext://some/file")
+		require.Error(t, err)
+	})
+
+	t.Run("overridden resolve function", func(t *testing.T) {
+		cwd, err := os.Getwd()
+		require.NoError(t, err)
+		extsPath := filepath.Join(cwd, "exts")
+		WithResolveURIFunc(func(u uri.URI) (string, error) {
+			parsed, err := url.Parse(string(u))
+			if err != nil {
+				return "", err
+			}
+			if parsed.Scheme == "ext" {
+				return filepath.Join(extsPath, parsed.Host, parsed.Path), nil
+			}
+			return ResolveURI(u)
+		})(f.m)
+
+		ext := uri.URI("ext://some/ext")
+		u, err := f.m.Resolve(ext)
+		require.NoError(t, err)
+		assert.Equal(t, uri.File(filepath.Join(extsPath, "some", "ext")), u)
+	})
+}
+
+func TestReadLoadResolve(t *testing.T) {
+	f := newFixture(t)
+	require.NoError(t, os.Mkdir("exts", 0755))
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	extsPath := filepath.Join(cwd, "exts")
+	resolve := func(u uri.URI) (string, error) {
+		parsed, err := url.Parse(string(u))
+		if err != nil {
+			return "", err
+		}
+		if parsed.Scheme == "ext" {
+			return filepath.Join(extsPath, parsed.Host, parsed.Path), nil
+		}
+		return ResolveURI(u)
+	}
+	WithResolveURIFunc(resolve)(f.m)
+	WithReadDocumentFunc(func(u uri.URI) ([]byte, error) {
+		file, err := resolve(u)
+		if err != nil {
+			return nil, err
+		}
+		return ReadDocument(uri.File(file))
+	})(f.m)
+
+	hello := filepath.Join(extsPath, "hello")
+	require.NoError(t, os.WriteFile(hello, []byte(`hello = lambda: print('Hi')`), 0644))
+	require.NoError(t, os.WriteFile("doc", []byte("load('ext://hello', 'hello')\nhello()"), 0644))
+
+	doc, err := f.m.Read(f.ctx, uri.File("doc"))
+	require.NoError(t, err)
+	syms := doc.Symbols()
+	assert.Equal(t, 1, len(syms))
+	assert.Equal(t, "hello", syms[0].Name)
+	assert.Equal(t, uri.File(hello), syms[0].Location.URI)
 }
 
 func TestURIfilename(t *testing.T) {
