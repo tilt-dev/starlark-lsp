@@ -3,7 +3,9 @@ package document
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -122,6 +124,41 @@ flag = True
 	diags := doc.Diagnostics()
 	fmt.Printf("diags: %v\n", diags)
 	assert.Equal(t, 0, len(diags))
+}
+
+func TestResolveURI(t *testing.T) {
+	f := newFixture(t)
+	require.NoError(t, os.Mkdir("exts", 0755))
+	t.Run("default resolve function", func(t *testing.T) {
+		file := uri.File("f.txt")
+		u, err := f.m.Resolve(file)
+		require.NoError(t, err)
+		assert.Equal(t, file, u)
+
+		_, err = f.m.Resolve("ext://some/file")
+		require.Error(t, err)
+	})
+
+	t.Run("overridden resolve function", func(t *testing.T) {
+		cwd, err := os.Getwd()
+		require.NoError(t, err)
+		extsPath := filepath.Join(cwd, "exts")
+		WithResolveURIFunc(func(u uri.URI) (string, error) {
+			parsed, err := url.Parse(string(u))
+			if err != nil {
+				return "", err
+			}
+			if parsed.Scheme == "ext" {
+				return filepath.Join(extsPath, parsed.Host, parsed.Path), nil
+			}
+			return ResolveURI(u)
+		})(f.m)
+
+		ext := uri.URI("ext://some/ext")
+		u, err := f.m.Resolve(ext)
+		require.NoError(t, err)
+		assert.Equal(t, uri.File(filepath.Join(extsPath, "some", "ext")), u)
+	})
 }
 
 func TestURIfilename(t *testing.T) {
