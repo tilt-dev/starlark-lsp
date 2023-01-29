@@ -61,6 +61,27 @@ foo(hello)
 	assertHoverResult(t, doc, "foo", "foos a bar", result)
 }
 
+func TestHoverFuncDefinedWithArgInFile(t *testing.T) {
+	f := newFixture(t)
+
+	doc := f.MainDoc(`
+def foo(name: str) -> str:
+  """
+  foos a bar
+
+  Args:
+    name: name of the bar
+  Returns:
+    name of the foo
+  """
+  pass
+
+foo(hello)
+`)
+	result := f.a.Hover(f.ctx, doc, protocol.Position{Line: 12, Character: 2})
+	assertHoverResult(t, doc, "foo", "foos a bar\n# Parameters\nname: name of the bar\n# Returns\nname of the foo", result)
+}
+
 func TestHoverNoMatch(t *testing.T) {
 	f := newFixture(t)
 
