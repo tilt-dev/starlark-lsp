@@ -79,7 +79,7 @@ def foo(name: str) -> str:
 foo(hello)
 `)
 	result := f.a.Hover(f.ctx, doc, protocol.Position{Line: 12, Character: 2})
-	assertHoverResult(t, doc, "foo", "foos a bar\n# Parameters\nname: name of the bar\n# Returns\nname of the foo", result)
+	assertHoverResult(t, doc, "foo", "foos a bar\n## Parameters\nname: name of the bar\n## Returns\nname of the foo", result)
 }
 
 func TestHoverNoMatch(t *testing.T) {

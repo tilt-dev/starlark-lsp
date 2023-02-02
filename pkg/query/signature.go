@@ -106,10 +106,10 @@ func (s Signature) Symbol() Symbol {
 	}
 	detail := s.Docs.Description
 	if len(argsFormatted) > 0 {
-		detail += fmt.Sprintf("\n# Parameters%s", argsFormatted)
+		detail += fmt.Sprintf("\n## Parameters%s", argsFormatted)
 	}
 	if len(returns) > 0 {
-		detail += fmt.Sprintf("\n# Returns\n%s", returns)
+		detail += fmt.Sprintf("\n## Returns\n%s", returns)
 	}
 	return Symbol{
 		Name:   s.Name,
