@@ -388,7 +388,10 @@ func parseBlockTitle(l string) (title string, ok bool) {
 }
 
 // fieldRe matches "field: ...".
-var fieldRe = regexp.MustCompile(`^(\S*)\s*:\s*(.*)$`)
+//
+// fix: Modify `^(\S*)\s*:\s*(.*)$` to `^(\S.*?)\s*:\s*(.*)$` will allow spaces,
+// and accept lines like `os (str): name of os`
+var fieldRe = regexp.MustCompile(`^(\S.*?)\s*:\s*(.*)$`)
 
 // parseFieldLine recognized strings like "field<space>*:<space>*...".
 //
