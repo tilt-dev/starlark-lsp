@@ -82,6 +82,28 @@ foo(hello)
 	assertHoverResult(t, doc, "foo", "foos a bar\n## Parameters\nname: name of the bar\n## Returns\nname of the foo", result)
 }
 
+func TestHoverFuncDefinedWithMultiArgs(t *testing.T) {
+	f := newFixture(t)
+
+	doc := f.MainDoc(`
+def foo(name1: str, name2: str) -> str:
+  """
+  foos a bar
+
+  Args:
+    name1: name1 of the bar
+    name2: name2 of the bar
+  Returns:
+    name of the foo
+  """
+  pass
+
+foo(hello, bye)
+`)
+	result := f.a.Hover(f.ctx, doc, protocol.Position{Line: 13, Character: 2})
+	assertHoverResult(t, doc, "foo", "foos a bar\n## Parameters\nname1: name1 of the bar\\\nname2: name2 of the bar\n## Returns\nname of the foo", result)
+}
+
 func TestHoverNoMatch(t *testing.T) {
 	f := newFixture(t)
 
