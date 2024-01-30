@@ -77,6 +77,15 @@ func IsModuleScope(doc DocumentContent, node *sitter.Node) bool {
 	for n := node.Parent(); n != nil; n = n.Parent() {
 		if n.Type() == NodeTypeFunctionDef {
 			return false
+		} else if n.Type() == NodeTypeERROR && n.ChildCount() >= 2 {
+			// upon dot completion inside the function, if the current node is "." (dot), then tree-sitter will fail
+			// to parse valid syntax, therefore instead of functionDefinition node there will be ERROR node.
+			// Let's check its direct named kids. It should have identifier (errored function definition) and parameters
+			if child1, child2 := n.NamedChild(0), n.NamedChild(1); child1 != nil && child2 != nil {
+				if child1.Type() == NodeTypeIdentifier && child2.Type() == NodeTypeParameters {
+					return false
+				}
+			}
 		}
 	}
 	return true
