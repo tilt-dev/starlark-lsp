@@ -5,8 +5,6 @@ builds:
   - id: autokitteh-starlark-lsp
     binary: autokitteh-starlark-lsp
     main: ./cmd/autokitteh-starlark-lsp
-    env:
-      - CGO_ENABLED=0
     goos:
       - linux
       - darwin
