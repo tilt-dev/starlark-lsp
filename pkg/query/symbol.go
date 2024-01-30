@@ -8,6 +8,10 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
+const (
+	Binded protocol.SymbolTag = 1 << iota // The symbol is binded to some other symbol
+)
+
 // Get all symbols defined at the same level as the given node.
 // If before != nil, only include symbols that appear before that node.
 func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {

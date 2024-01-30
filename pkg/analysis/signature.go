@@ -6,8 +6,8 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node, args callWithArguments) (query.Signature, bool) {
@@ -32,14 +32,27 @@ func (a *Analyzer) signatureInformation(doc document.Document, node *sitter.Node
 
 	if !found && strings.Contains(fnName, ".") {
 		ind := strings.LastIndex(fnName, ".")
-		fnName = fnName[ind+1:]
-		sig = a.builtins.Methods[fnName]
+
+		mName := fnName[ind+1:]
+		sig = a.builtins.Methods[mName]
 		if sig.Name != "" {
-			meth, ok := a.checkForTypedMethod(doc, node, fnName, args)
-			if ok {
+			meth, found := a.checkForTypedMethod(doc, node, mName, args)
+			if found {
 				sig = meth
 			}
 		}
+
+		// ak: try to find original func signature for rebinded sybol --------
+		//
+		// FIXME. rewrite with types and methods. Not working now :(
+		if !found {
+			preDotName := fnName[:ind]
+			sym := SymbolMatching(doc.Symbols(), preDotName)
+			if akIsBindedSymbol(sym) {
+				buitinSym := SymbolMatching(a.builtins.Symbols, sym.Detail)
+				sig, _ = a.builtins.Functions[buitinSym.Name+"."+mName]
+			}
+		} // -----------------------------------------------------------------
 	}
 
 	return sig, sig.Name != ""
@@ -114,9 +127,10 @@ type callWithArguments struct {
 // `call`.
 //
 // Currently, this supports two cases:
-// 	(1) Current node is inside of a `call`
-// 	(2) Current node is inside of an ERROR block where first child is an
-// 		`identifier`
+//
+//	(1) Current node is inside of a `call`
+//	(2) Current node is inside of an ERROR block where first child is an
+//		`identifier`
 func possibleCallInfo(doc document.Document, node *sitter.Node, pt sitter.Point) (args callWithArguments) {
 	for n := node; n != nil; n = n.Parent() {
 		if n.Type() == query.NodeTypeCall {

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 func (f *fixture) builtinSymbols() {
@@ -241,8 +241,10 @@ func TestKeywordArgCompletion(t *testing.T) {
 		// past second arg, exclude `ref` and `context`
 		{doc: "docker_build(ref, context,)", char: 26, expected: []string{"build_args=", "dockerfile=", "dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
 		// used several kwargs
-		{doc: "docker_build(ref='image:latest', context='.', dockerfile='Dockerfile.test', build_args={'DEBUG':'1'},)", char: 101,
-			expected: []string{"dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"}},
+		{
+			doc: "docker_build(ref='image:latest', context='.', dockerfile='Dockerfile.test', build_args={'DEBUG':'1'},)", char: 101,
+			expected: []string{"dockerfile_contents=", "live_update=", "match_in_env_vars=", "ignore=", "only=", "entrypoint=", "target=", "ssh=", "network=", "secret=", "extra_tag=", "container_args=", "cache_from=", "pull=", "platform=", "docker_build", "local"},
+		},
 
 		// used `command` by position, `env` by keyword
 		{doc: "local('echo $MESSAGE', env={'MESSAGE':'HELLO'},)", char: 47, expected: []string{"quiet=", "command_bat=", "echo_off=", "dir=", "docker_build", "local"}},

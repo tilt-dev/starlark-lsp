@@ -21,9 +21,9 @@ import (
 	"go.lsp.dev/uri"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/docstring"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 const envGetcwd = "environ = {}\ndef getcwd():\n  pass\n"
@@ -228,13 +228,13 @@ func assertContainsAll(t *testing.T, expected []string, actual []string) {
 
 func (f *fixture) File(name, contents string) string {
 	path := filepath.Join(f.dir, name)
-	_ = os.WriteFile(path, []byte(contents), 0644)
+	_ = os.WriteFile(path, []byte(contents), 0o644)
 	return path
 }
 
 func (f *fixture) Dir(name string) string {
 	path := filepath.Join(f.dir, name)
-	_ = os.Mkdir(path, 0755)
+	_ = os.Mkdir(path, 0o755)
 	return path
 }
 

@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 func TestFunctionParameters(t *testing.T) {
@@ -116,7 +116,6 @@ func TestLeafNodes(t *testing.T) {
 			assert.ElementsMatch(t, tt.types, types)
 		})
 	}
-
 }
 
 func TestLoadStatements(t *testing.T) {

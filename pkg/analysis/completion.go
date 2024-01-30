@@ -9,8 +9,8 @@ import (
 
 	sitter "github.com/smacker/go-tree-sitter"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 func SymbolMatching(symbols []query.Symbol, name string) query.Symbol {
@@ -21,6 +21,27 @@ func SymbolMatching(symbols []query.Symbol, name string) query.Symbol {
 	}
 	return query.Symbol{}
 }
+
+// ak: deal with binded symbols (sym.Name -> sym.Detail) ---------------------
+func akIsBindedSymbol(sym query.Symbol) bool {
+	if len(sym.Tags) > 0 {
+		for _, tag := range sym.Tags {
+			if tag == query.Binded {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// find and return either symbol or resolved binded symbol
+func akSymbolMatching(symbols []query.Symbol, name string) query.Symbol {
+	sym := SymbolMatching(symbols, name)
+	if akIsBindedSymbol(sym) {
+		return SymbolMatching(symbols, sym.Detail)
+	}
+	return sym
+} // -------------------------------------------------------------------------
 
 func SymbolsStartingWith(symbols []query.Symbol, prefix string) []query.Symbol {
 	if prefix == "" {
@@ -107,7 +128,7 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 
 	for i, id := range identifiers {
 		if i < len(identifiers)-1 {
-			sym := SymbolMatching(symbols, id)
+			sym := akSymbolMatching(symbols, id)
 			symbols = sym.Children
 			a.logger.Debug("children",
 				zap.String("id", id),
@@ -135,11 +156,11 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 }
 
 // Returns a list of available symbols for completion as follows:
-// - If in a function argument list, include keyword args for that function
-// - Add symbols in scope for the node at point, excluding symbols at the module
-//   level (document symbols), because the document already has those computed
-// - Add document symbols
-// - Add builtins
+//   - If in a function argument list, include keyword args for that function
+//   - Add symbols in scope for the node at point, excluding symbols at the module
+//     level (document symbols), because the document already has those computed
+//   - Add document symbols
+//   - Add builtins
 func (a *Analyzer) availableSymbols(doc document.Document, nodeAtPoint *sitter.Node, pt sitter.Point) []query.Symbol {
 	symbols := []query.Symbol{}
 	if nodeAtPoint != nil {

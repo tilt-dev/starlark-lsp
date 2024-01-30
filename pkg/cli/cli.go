@@ -11,7 +11,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
+	ak "github.com/autokitteh/starlark-lsp/pkg/autokitteh"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
 )
 
 var logLevel = zap.NewAtomicLevelAt(zapcore.WarnLevel)
@@ -24,10 +25,11 @@ type RootCmd struct {
 
 // Creates a new RootCmd
 // params:
-//   commandName: what to call the base command in examples (e.g., "starlark-lsp", "tilt lsp")
-//   builtinFSProvider: provides an fs.FS from which tilt builtin docs should be read
-//                    if nil, a --builtin-paths param will be added for specifying paths
-//   managerOpts: a variable number of ManagerOpt arguments to configure the document manager.
+//
+//	commandName: what to call the base command in examples (e.g., "starlark-lsp", "tilt lsp")
+//	builtinFSProvider: provides an fs.FS from which tilt builtin docs should be read
+//	                 if nil, a --builtin-paths param will be added for specifying paths
+//	managerOpts: a variable number of ManagerOpt arguments to configure the document manager.
 func NewRootCmd(commandName string, builtinFSProvider BuiltinFSProvider, managerOpts ...document.ManagerOpt) *RootCmd {
 	cmd := RootCmd{
 		Command: &cobra.Command{
@@ -61,7 +63,12 @@ func Execute() {
 	defer cancel()
 	setupSignalHandler(cancel)
 
-	err := NewRootCmd("starlark-lsp", nil).ExecuteContext(ctx)
+	akBuiltinFSProvider, err := ak.BuiltinsFSProvider()
+	if err != nil {
+		logger.Error("failed to embed autokitteh builtins", zap.Error(err))
+	}
+
+	err = NewRootCmd("starlark-lsp", akBuiltinFSProvider).ExecuteContext(ctx)
 	if err != nil {
 		if !isCobraError(err) {
 			logger.Error("fatal error", zap.Error(err))

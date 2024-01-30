@@ -15,8 +15,8 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 type Builtins struct {
@@ -217,7 +217,6 @@ func LoadBuiltinsFromFS(ctx context.Context, f fs.FS) (*Builtins, error) {
 
 	builtinsMap, walker := loadBuiltinsWalker(ctx, f)
 	err := fs.WalkDir(f, root, walker)
-
 	if err != nil {
 		return nil, errors.Wrapf(err, "walking %s", root)
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 func TestQueryDocumentSymbols(t *testing.T) {

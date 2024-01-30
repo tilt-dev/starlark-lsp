@@ -3,8 +3,8 @@ package analysis
 import (
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 func (a Analyzer) SymbolAtPosition(doc document.Document, pos protocol.Position) query.Symbol {

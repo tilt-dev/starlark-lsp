@@ -10,14 +10,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/analysis"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
-const SPEC_Bazel = "https://raw.githubusercontent.com/bazelbuild/starlark/master/spec.md"
-const SPEC_StarlarkGo = "https://raw.githubusercontent.com/google/starlark-go/master/doc/spec.md"
-const ConstantsAndFunctions = "## Built-in constants and functions"
-const Methods = "## Built-in methods"
+const (
+	SPEC_Bazel            = "https://raw.githubusercontent.com/bazelbuild/starlark/master/spec.md"
+	SPEC_StarlarkGo       = "https://raw.githubusercontent.com/google/starlark-go/master/doc/spec.md"
+	ConstantsAndFunctions = "## Built-in constants and functions"
+	Methods               = "## Built-in methods"
+)
 
 // End of methods section in SPEC_Bazel
 const GrammarReference = "## Grammar reference"
@@ -132,9 +134,11 @@ func (b *BuiltinsScanner) loadHints() error {
 	return nil
 }
 
-var signature *regexp.Regexp = regexp.MustCompile("`([^`]+)`")
-var altSignature *regexp.Regexp = regexp.MustCompile(`^(\S+)`)
-var stripOptional *regexp.Regexp = regexp.MustCompile(`(\w+\.)?(\w+)\(?([^[)]+)?(\[[^]]+\])?\)?`)
+var (
+	signature     *regexp.Regexp = regexp.MustCompile("`([^`]+)`")
+	altSignature  *regexp.Regexp = regexp.MustCompile(`^(\S+)`)
+	stripOptional *regexp.Regexp = regexp.MustCompile(`(\w+\.)?(\w+)\(?([^[)]+)?(\[[^]]+\])?\)?`)
+)
 
 func (b *BuiltinsScanner) parseConstantsAndFunctions() error {
 	err := b.readUntil(ConstantsAndFunctions)

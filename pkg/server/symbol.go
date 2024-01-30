@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 
 	"go.lsp.dev/protocol"
 )
@@ -24,8 +24,8 @@ func toDocumentSymbol(s query.Symbol) protocol.DocumentSymbol {
 }
 
 func (s *Server) DocumentSymbol(ctx context.Context,
-	params *protocol.DocumentSymbolParams) ([]interface{}, error) {
-
+	params *protocol.DocumentSymbolParams,
+) ([]interface{}, error) {
 	doc, err := s.docs.Read(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err

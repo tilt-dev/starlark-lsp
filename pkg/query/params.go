@@ -9,15 +9,15 @@ import (
 
 	sitter "github.com/smacker/go-tree-sitter"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/docstring"
+	"github.com/autokitteh/starlark-lsp/pkg/docstring"
 )
 
 // FunctionParameters extracts parameters from a function definition and
 // supports a mixture of positional parameters, default value parameters,
 // typed parameters*, and typed default value parameters*.
 //
-// * These are not valid Starlark, but we support them to enable using Python
-//   type-stub files for improved editor experience.
+//   - These are not valid Starlark, but we support them to enable using Python
+//     type-stub files for improved editor experience.
 const FunctionParameters = `
 (parameters ([
     (identifier) @name
@@ -75,7 +75,8 @@ func (p Parameter) Symbol() Symbol {
 }
 
 func extractParameters(doc DocumentContent, fnDocs docstring.Parsed,
-	node *sitter.Node) []Parameter {
+	node *sitter.Node,
+) []Parameter {
 	if node.Type() != NodeTypeParameters {
 		// A query is used here because there's several different node types
 		// for parameter values, and the query handles normalization gracefully

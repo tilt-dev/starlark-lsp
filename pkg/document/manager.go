@@ -11,13 +11,15 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
-type ManagerOpt func(manager *Manager)
-type ReadDocumentFunc func(uri.URI) ([]byte, error)
-type ResolveURIFunc func(uri.URI) (string, error)
-type DocumentMap map[uri.URI]Document
+type (
+	ManagerOpt       func(manager *Manager)
+	ReadDocumentFunc func(uri.URI) ([]byte, error)
+	ResolveURIFunc   func(uri.URI) (string, error)
+	DocumentMap      map[uri.URI]Document
+)
 
 // Manager provides simplified file read/write operations for the LSP server.
 type Manager struct {

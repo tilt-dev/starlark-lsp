@@ -48,16 +48,20 @@ Global Flags:
 ```
 
 ## Current Status
+Initial version by [Tilt][]. 
 
-Starlark-lsp is bundled and used by [Tilt][] with the `tilt lsp` command as part of the [`Tiltfile` VS Code extension][ext].
-
-The `Tiltfile` in this repository can be used while developing the language server functionality for the `Tiltfile` extension. For more information on how to contribute to the extension, see the [CONTRIBUTING.md][] file in the [vscode-tilt][] repository.
-
+Starlark-lsp is bundled and used bywith the `ak lsp` command as part of the [`Autokitteh`` VS Code extension][ext].
+<!--
+The `Tiltfile` in this repository can be used while developing the language server functionality for the `Tiltfile` extension. For more information on how to contribute to the extension, see the [CONTRIBUTING.md][] file in the [vscode-ak][] repository.
+-->
 
 [starlark]: https://docs.bazel.build/versions/main/skylark/language.html
 [go.lsp.dev]: https://go.lsp.dev/
 [Tree sitter]: https://tree-sitter.github.io/tree-sitter/
 [Tilt]: https://tilt.dev/
-[ext]: https://marketplace.visualstudio.com/items?itemName=tilt-dev.tiltfile
+[Autokitteh]: https://www.autokitteh.com/
+[ext]: https://marketplace.visualstudio.com/items?itemName=autokitteh
+<!--
 [CONTRIBUTING.md]: https://github.com/tilt-dev/vscode-tilt/blob/main/CONTRIBUTING.md#language-server
-[vscode-tilt]: https://github.com/tilt-dev/vscode-tilt/
+-->
+[vscode-ak]: https://github.com/autokitteh/vscode-extension

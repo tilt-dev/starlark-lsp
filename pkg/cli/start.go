@@ -16,9 +16,9 @@ import (
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/analysis"
-	"github.com/tilt-dev/starlark-lsp/pkg/document"
-	"github.com/tilt-dev/starlark-lsp/pkg/server"
+	"github.com/autokitteh/starlark-lsp/pkg/analysis"
+	"github.com/autokitteh/starlark-lsp/pkg/document"
+	"github.com/autokitteh/starlark-lsp/pkg/server"
 )
 
 type startCmd struct {
@@ -44,17 +44,22 @@ type exampleTemplateParams struct {
 	HasBuiltinPathsParam bool
 }
 
-type BuiltinAnalyzerOptionProvider = func() analysis.AnalyzerOption
-type BuiltinFSProvider = func() fs.FS
+type (
+	BuiltinAnalyzerOptionProvider = func() analysis.AnalyzerOption
+	BuiltinFSProvider             = func() fs.FS
+)
 
-var builtinAnalyzerOption BuiltinAnalyzerOptionProvider = nil
-var providedManagerOptions []document.ManagerOpt
+var (
+	builtinAnalyzerOption  BuiltinAnalyzerOptionProvider = nil
+	providedManagerOptions []document.ManagerOpt
+)
 
 // creates a new startCmd
 // params:
-//   commandName: what to call the base command in examples (e.g., "starlark-lsp", "tilt lsp")
-//   builtinFSProvider: provides an fs.FS from which tilt builtin docs should be read
-//                      if nil, a --builtin-paths param will be added for specifying paths
+//
+//	commandName: what to call the base command in examples (e.g., "starlark-lsp", "tilt lsp")
+//	builtinFSProvider: provides an fs.FS from which tilt builtin docs should be read
+//	                   if nil, a --builtin-paths param will be added for specifying paths
 func newStartCmd(baseCommandName string, builtinFSProvider BuiltinFSProvider, managerOpts ...document.ManagerOpt) *startCmd {
 	cmd := startCmd{
 		Command: &cobra.Command{

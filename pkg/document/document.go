@@ -10,8 +10,9 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
+	"go.uber.org/zap"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/query"
+	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
 type LoadSymbol struct {
@@ -150,13 +151,44 @@ func (d *document) Copy() Document {
 	return doc
 }
 
-// Follow (evaulate) the parsed load statements and assign symbols, functions
+// ---------------------------------------------------------------------------
+var akIntegrationPrefix = "@"
+
+func akAddConnectionSymbol(ctx context.Context, d *document, load LoadStatement) {
+	logger := protocol.LoggerFromContext(ctx)
+
+	integration := load.File[len(akIntegrationPrefix):] // already checked for existence
+
+	// FIXME: compare and return diagnostic error on unknown integration type
+
+	for _, sym := range load.Symbols {
+		logger.Debug("staticaly rebind integration to connection", zap.String("integration", integration), zap.String("connection", sym.Name))
+
+		d.symbols = append(d.symbols, query.Symbol{
+			Name:   sym.Name,  // connection
+			Detail: load.File, // binded integration symbol (actually dir/file where integration API were defined)
+			Kind:   protocol.SymbolKindClass,
+			Tags:   []protocol.SymbolTag{query.Binded},
+		})
+	}
+} // -------------------------------------------------------------------------
+
+// Follow (evaluate) the parsed load statements and assign symbols, functions
 // and diagnostics discovered from parsing the dependent document.
 func (d *document) followLoads(ctx context.Context, m *Manager, parseState DocumentMap) {
 	for i, load := range d.loads {
 		if load.File == "" {
 			continue
 		}
+
+		// --------------------------------------------------------------------------
+		// ak: handle autokitteh integration<->connection binding via load statements
+		if strings.HasPrefix(load.File, akIntegrationPrefix) {
+			akAddConnectionSymbol(ctx, d, load)
+			d.loads[i].processed = true
+			continue
+		} // ------------------------------------------------------------------------
+
 		path, err := resolvePath(load.File, d.uri)
 		var dep Document
 		if err == nil {

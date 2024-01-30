@@ -4,7 +4,7 @@ import (
 	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/protocol"
 
-	"github.com/tilt-dev/starlark-lsp/pkg/middleware"
+	"github.com/autokitteh/starlark-lsp/pkg/middleware"
 )
 
 var StandardMiddleware = []middleware.Middleware{
