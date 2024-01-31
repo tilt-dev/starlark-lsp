@@ -35,7 +35,11 @@ func ExtractVariableAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
 	}
 
-	var symbol Symbol
+	symbol := Struct(doc, n)
+	if symbol.Name != "" {
+		return symbol
+	}
+
 	assignment := n.NamedChild(0)
 	if assignment == nil || assignment.Type() != "assignment" {
 		return symbol

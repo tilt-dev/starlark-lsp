@@ -334,3 +334,12 @@ s.i`, line: 1, char: 3, expected: []string{"items"}},
 		})
 	}
 }
+
+func TestStructCompletion(t *testing.T) {
+	f := newFixture(t)
+	doc := f.MainDoc(`x = struct(a=1, b=2)
+x.
+`)
+	result := f.a.Completion(doc, protocol.Position{Line: 1, Character: 2})
+	assertCompletionResult(t, []string{"a", "b"}, result)
+}
