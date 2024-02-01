@@ -41,4 +41,7 @@ release-dry-run:
 	@$(DOCKER_RUN) $(GORELEASER_IMAGE) --clean --skip=validate --skip=publish
 
 release:
-	@$(DOCKER_RUN) --env-file .release-env $(GORELEASER_IMAGE) release --clean
+	@$(DOCKER_RUN) -eGITHUB_TOKEN=$(GITHUB_TOKEN) $(GORELEASER_IMAGE) release --clean --skip=validate
+
+#      @$(DOCKER_RUN) -e GITHUB_TOKEN="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" $(GORELEASER_IMAGE) release --clean --skip=validate
+#	$(DOCKER_RUN) --env-file .release-env $(GORELEASER_IMAGE) release #--clean
