@@ -77,11 +77,7 @@ source:
   enabled: false
 
 release:
-#  github:
-#    owner: goreleaser
-#    name: autokitteh-starlark-lsp
   prerelease: auto
-#  draft: false
 
 archives:
   - files:
