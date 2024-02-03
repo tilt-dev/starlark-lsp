@@ -144,12 +144,14 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 		}
 	}
 
-	if len(symbols) == 0 {
-		lastId := identifiers[len(identifiers)-1]
-		expr := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
-		if expr != nil {
-			symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
-		}
+	if len(symbols) != 0 {
+		return symbols
+	}
+
+	lastId := identifiers[len(identifiers)-1]
+	expr := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+	if expr != nil {
+		symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
 	}
 
 	return symbols
