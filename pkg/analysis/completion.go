@@ -151,7 +151,7 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 	lastId := identifiers[len(identifiers)-1]
 	expr := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
 	if expr != nil {
-		symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
+		symbols = append(symbols, SymbolsStartingWith(a.availableMembersForNode(doc, expr), lastId)...)
 	}
 
 	return symbols
@@ -401,8 +401,8 @@ func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string 
 	return ""
 }
 
-func (a *Analyzer) availableMembers(doc document.Document, node *sitter.Node) []query.Symbol {
-	if t := a.analyzeType(doc, node); t != "" {
+func (a *Analyzer) availableMembersForType(t string) []query.Symbol {
+	if t != "" {
 		if class, found := a.builtins.Types[t]; found {
 			return class.Members
 		}
@@ -412,6 +412,11 @@ func (a *Analyzer) availableMembers(doc document.Document, node *sitter.Node) []
 		}
 	}
 	return a.builtins.Members
+}
+
+func (a *Analyzer) availableMembersForNode(doc document.Document, node *sitter.Node) []query.Symbol {
+	t := a.analyzeType(doc, node)
+	return a.availableMembersForType(t)
 }
 
 func (a *Analyzer) FindDefinition(doc document.Document, node *sitter.Node, name string) (query.Symbol, bool) {
