@@ -72,6 +72,14 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
 
+
+#universal_binaries:
+#  - id: darwin-universal
+#    ids:
+#      - darwin-amd64
+#      - darwin-arm64
+#    replace: true
+
 source:
   enabled: false
 
