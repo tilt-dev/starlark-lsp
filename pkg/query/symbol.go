@@ -49,7 +49,7 @@ func ExtractVariableAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 	t := assignment.ChildByFieldName("type")
 	var kind protocol.SymbolKind
 	if t != nil {
-		kind = pythonTypeToSymbolKind(doc, t)
+		kind, _ = AnnotationNodeToSymbolKindAndType(doc, t)
 	} else if val != nil {
 		kind = NodeToSymbolKind(val)
 	}
