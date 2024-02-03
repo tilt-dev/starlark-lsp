@@ -51,7 +51,7 @@ func ExtractVariableAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 	if t != nil {
 		kind = pythonTypeToSymbolKind(doc, t)
 	} else if val != nil {
-		kind = nodeTypeToSymbolKind(val)
+		kind = NodeToSymbolKind(val)
 	}
 	if kind == 0 {
 		kind = protocol.SymbolKindVariable
