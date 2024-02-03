@@ -32,12 +32,13 @@ builtins:
 .PHONY: sysroot-pack sysroot-unpack release-dry-run release
 
 PACKAGE_NAME          := github.com/autokitteh/autokitteh-starlark-lsp
+GOLANG_CROSS_VERSION  ?= v1.21  # could use latest, but it's better to specify exact Go version
 
 DOCKER_RUN = docker run --rm -e CGO_ENABLED=1 -v /var/run/docker.sock:/var/run/docker.sock -v `pwd`:/go/src/$(PACKAGE_NAME) -v `pwd`/sysroot:/sysroot -w /go/src/$(PACKAGE_NAME)
 GORELEASER_IMAGE = ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION}
 
 release-dry-run:
-	@$(DOCKER_RUN) $(GORELEASER_IMAGE) --clean --skip=validate --skip=publish
+	@$(DOCKER_RUN) $(GORELEASER_IMAGE) --clean --skip=validate --skip=publish --debug --verbose
 
 release:
 	@$(DOCKER_RUN) -eGITHUB_TOKEN=$(GITHUB_TOKEN) $(GORELEASER_IMAGE) release --clean --skip=validate
