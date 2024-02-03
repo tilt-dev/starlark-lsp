@@ -180,3 +180,10 @@ type Symbol struct {
 func (s Symbol) HasLocation() bool {
 	return s.Location.URI != ""
 }
+
+func (s Symbol) GetType() string {
+	if t := SymbolKindToBuiltinType(s.Kind); t != "" {
+		return t
+	}
+	return s.Type
+}

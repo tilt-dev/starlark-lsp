@@ -362,40 +362,25 @@ func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string 
 	if node == nil {
 		return ""
 	}
-	switch node.Type() {
-	case query.NodeTypeString:
-		return "String"
-	case query.NodeTypeDictionary:
-		return "Dict"
-	case query.NodeTypeList:
-		return "List"
+	nodeT := node.Type()
+	switch nodeT {
+	case query.NodeTypeString, query.NodeTypeDictionary, query.NodeTypeList:
+		return query.SymbolKindToBuiltinType(query.StrToSymbolKind(nodeT))
+
 	case query.NodeTypeIdentifier:
-		sym, found := a.FindDefinition(doc, node, doc.Content(node))
-		if found {
-			switch sym.Kind {
-			case protocol.SymbolKindString:
-				return "String"
-			case protocol.SymbolKindObject:
-				return "Dict"
-			case protocol.SymbolKindArray:
-				return "List"
-			}
+		if sym, found := a.FindDefinition(doc, node, doc.Content(node)); found {
+			return sym.GetType()
 		}
+
 	case query.NodeTypeCall:
 		fnName := doc.Content(node.ChildByFieldName("function"))
 		args := node.ChildByFieldName("arguments")
 		sig, found := a.signatureInformation(doc, node, callWithArguments{fnName: fnName, argsNode: args})
 		if found && sig.ReturnType != "" {
-			switch strings.ToLower(sig.ReturnType) {
-			case "str", "string":
-				return "String"
-			case "list":
-				return "List"
-			case "dict":
-				return "Dict"
-			default:
-				return sig.ReturnType
+			if _, t := query.StrToSymbolKindAndType(sig.ReturnType); t != "" {
+				return t
 			}
+			return sig.ReturnType
 		}
 	}
 	return ""
