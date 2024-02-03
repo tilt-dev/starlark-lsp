@@ -103,7 +103,7 @@ release:
 archives:
   - files:
       - none*  # just binary
-    format: tar.gz
+    format: xz
     name_template: >-
       {{ .Binary }}_
       {{- title .Os }}_
@@ -111,9 +111,6 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
 
 snapshot:
   name_template: "{{ .Tag }}"
