@@ -1,8 +1,5 @@
 name: goreleaser
 
-env:
-  WORKING_DIRECTORY: .
-
 on:
   push:
     tags:
@@ -23,8 +20,8 @@ jobs:
       - name: setup dependencies
         uses: actions/setup-go@v4
         with:
-          cache-dependency-path: ${{env.WORKING_DIRECTORY}}/go.sum
-          go-version-file: ${{env.WORKING_DIRECTORY}}/go.mod
+          cache-dependency-path: go.sum
+          go-version-file: go.mod
 
       - name: release publish
         run: make release GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}
