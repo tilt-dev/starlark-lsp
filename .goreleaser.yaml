@@ -105,8 +105,7 @@ archives:
       - none*  # just binary
     format: tar.xz
     name_template: >-
-      {{ .Binary }}_
-      {{ .Os }}_
+      {{ .Binary }}_{{ .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
