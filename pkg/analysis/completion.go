@@ -106,12 +106,15 @@ func (a *Analyzer) Completion(doc document.Document, pos protocol.Position) *pro
 	return completionList
 }
 
+var availableSymbols []query.Symbol
+
 func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Node, pt sitter.Point) []query.Symbol {
 	var nodeAtPoint *sitter.Node
 	if len(nodes) > 0 {
 		nodeAtPoint = nodes[len(nodes)-1]
 	}
 	symbols := a.availableSymbols(doc, nodeAtPoint, pt)
+	availableSymbols = symbols // FIXME:
 	identifiers := query.ExtractIdentifiers(doc, nodes, &pt)
 
 	a.logger.Debug("completion attempt",
@@ -143,15 +146,29 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 			symbols = SymbolsStartingWith(symbols, id)
 		}
 	}
-
 	if len(symbols) != 0 {
 		return symbols
 	}
 
 	lastId := identifiers[len(identifiers)-1]
-	expr := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+	pt = sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))}
+	expr := a.findAttrObjectExpression(nodes, pt)
+
 	if expr != nil {
-		symbols = append(symbols, SymbolsStartingWith(a.availableMembersForNode(doc, expr), lastId)...)
+		a.logger.Debug("dot object completion", zap.Strings("objs", identifiers[:len(identifiers)-1]))
+
+		if expr.Type() == query.NodeTypeIdentifier { // FIXME: remove from here? better place? AnalyzeTYpe?
+			if sym, found := a.FindDefinition(doc, expr, doc.Content(expr)); found {
+				if sym.Kind == protocol.SymbolKindVariable {
+					origSym := a.resolveSymbolTypeAndKind(doc, sym, availableSymbols)
+					if origSym.Kind != protocol.SymbolKindVariable { // FIXME: better way to know that we resolved
+						return SymbolsStartingWith(a.availableMembersForType(origSym.GetType()), lastId)
+					}
+				}
+			}
+		}
+
+		return SymbolsStartingWith(a.availableMembersForNode(doc, expr), lastId)
 	}
 
 	return symbols
@@ -338,6 +355,18 @@ func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Poin
 			break
 		}
 	}
+
+	// ak: FIXME: add parent as well?
+	if dot == nil {
+		// FIXME? should we check the range?
+		n := nodes[len(nodes)-1]
+		if n.Type() == "." {
+			dot = n
+			parentNode = n
+		}
+
+	}
+
 	if dot != nil {
 		expr := parentNode.PrevSibling()
 		for n := dot; n != parentNode; n = n.Parent() {
@@ -384,6 +413,54 @@ func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string 
 		}
 	}
 	return ""
+}
+
+func (a *Analyzer) resolveSymbolTypeAndKind(doc document.Document, sym query.Symbol, symbols []query.Symbol) query.Symbol {
+	symbolsToResolve := []query.Symbol{}
+
+	for i := 0; i < len(symbols); i++ { // limit just to be sure  // FIXME: map? to avoid infinite loops? instead of counter
+		symbolsToResolve = append(symbolsToResolve, sym)
+
+		if strings.HasSuffix(sym.Type, "()") { // function assignment
+			break
+		}
+		if _, knownKind := query.KnownKinds[sym.Kind]; knownKind {
+			break
+		}
+
+		for _, s := range symbols {
+			if s.Name == sym.Type {
+				sym = s
+				break
+			}
+		}
+	}
+
+	if len(symbolsToResolve) == 0 {
+		return sym
+	}
+
+	sourceSymbol := symbolsToResolve[len(symbolsToResolve)-1]
+
+	// FIXME? see findDefinitionType
+	if _, knownKind := query.KnownKinds[sourceSymbol.Kind]; knownKind {
+		return sourceSymbol
+	}
+	if strings.HasSuffix(sourceSymbol.Type, "()") { // function assignment
+		// FIXME: maybe to pass node? and not symbols? signatureINfo will search first for and local scope functions
+		// FIXME: split signatureInfo to 2 methods. buitins and all other
+		// FIXME: move seacrh for name + funcname before searching in typeMethods
+
+		funcName := sourceSymbol.Type[:len(sourceSymbol.Type)-2] // remove '()'
+		sig, found := a.signatureInformation(doc, doc.Tree().RootNode(), callWithArguments{fnName: funcName})
+		if found && sig.ReturnType != "" {
+			sourceSymbol.Type = sig.ReturnType
+			sourceSymbol.Kind = protocol.SymbolKindStruct
+		}
+		return sourceSymbol
+
+	}
+	return sym
 }
 
 func (a *Analyzer) availableMembersForType(t string) []query.Symbol {

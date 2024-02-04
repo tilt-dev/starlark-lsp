@@ -12,6 +12,15 @@ const (
 	Binded protocol.SymbolTag = 1 << iota // The symbol is binded to some other symbol
 )
 
+var KnownKinds map[protocol.SymbolKind]bool = map[protocol.SymbolKind]bool{
+	protocol.SymbolKindBoolean: true,
+	protocol.SymbolKindArray:   true, // list
+	protocol.SymbolKindObject:  true, // dict
+	protocol.SymbolKindNumber:  true, // float, int
+	protocol.SymbolKindNull:    true,
+	protocol.SymbolKindString:  true,
+}
+
 // Get all symbols defined at the same level as the given node.
 // If before != nil, only include symbols that appear before that node.
 func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
