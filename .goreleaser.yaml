@@ -103,7 +103,7 @@ release:
 archives:
   - files:
       - none*  # just binary
-    format: xz
+    format: tar.xz
     name_template: >-
       {{ .Binary }}_
       {{ .Os }}_
