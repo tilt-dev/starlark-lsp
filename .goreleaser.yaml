@@ -1,16 +1,77 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
+env:
+  - CGO_ENABLED=1
 
 builds:
-  - id: autokitteh-starlark-lsp
+  - id: darwin-arm64
+    binary: autokitteh-starlark-lsp
+    main: ./cmd/autokitteh-starlark-lsp
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    env:
+      - CC=o64-clang
+      - CXX=o64-clang++
+      - PKG_CONFIG_SYSROOT_DIR=/sysroot/macos/arm64
+      - PKG_CONFIG_PATH=/sysroot/macos/arm64/usr/local/lib/pkgconfig
+    flags:
+      - -mod=readonly
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+  - id: darwin-amd64
+    binary: autokitteh-starlark-lsp
+    main: ./cmd/autokitteh-starlark-lsp
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    env:
+      - CC=o64-clang
+      - CXX=o64-clang++
+      - PKG_CONFIG_SYSROOT_DIR=/sysroot/macos/amd64
+      - PKG_CONFIG_PATH=/sysroot/macos/amd64/usr/local/lib/pkgconfig
+    flags:
+      - -mod=readonly
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+  - id: linux-amd64
     binary: autokitteh-starlark-lsp
     main: ./cmd/autokitteh-starlark-lsp
     goos:
       - linux
-      - darwin
     goarch:
       - amd64
-      - arm64
+    env:
+    flags:
+      - -mod=readonly
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+  - id: win-amd64
+    binary: autokitteh-starlark-lsp
+    main: ./cmd/autokitteh-starlark-lsp
+    goos:
+      - windows
+    goarch:
+      - amd64
+    env:
+      - CC=x86_64-w64-mingw32-gcc
+      - CXX=x86_64-w64-mingw32-g++
+    flags:
+      - -mod=readonly
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+#universal_binaries:
+#  - id: darwin-universal
+#    ids:
+#      - darwin-amd64
+#      - darwin-arm64
+#    replace: true
 
 source:
   enabled: false
@@ -20,12 +81,14 @@ release:
 
 archives:
   - files:
-      - none*
-    format: tar.gz
+      - none*  # just binary
+    format: tar.xz
     name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
+      {{ .Binary }}_{{ .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+snapshot:
+  name_template: "{{ .Tag }}"
