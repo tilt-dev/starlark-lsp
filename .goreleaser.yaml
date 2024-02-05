@@ -66,13 +66,6 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
 
-#universal_binaries:
-#  - id: darwin-universal
-#    ids:
-#      - darwin-amd64
-#      - darwin-arm64
-#    replace: true
-
 source:
   enabled: false
 
@@ -82,7 +75,7 @@ release:
 archives:
   - files:
       - none*  # just binary
-    format: tar.xz
+    format: tar.gz
     name_template: >-
       {{ .Binary }}_{{ .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
