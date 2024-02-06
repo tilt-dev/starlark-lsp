@@ -64,7 +64,7 @@ func (a *Analyzer) checkForTypedMethod(doc document.Document, node *sitter.Node,
 	if query.PointAfterOrEqual(node.StartPoint(), afterDot) {
 		node = node.Parent()
 	}
-	expr := a.findAttrObjectExpression([]*sitter.Node{node}, afterDot)
+	expr := a.findObjectExpression([]*sitter.Node{node}, afterDot)
 	if t := a.analyzeType(doc, expr); t != "" {
 		if ty, ok := a.builtins.Types[t]; ok {
 			return ty.FindMethod(methodName)

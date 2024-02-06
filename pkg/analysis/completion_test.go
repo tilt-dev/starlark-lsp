@@ -1,12 +1,14 @@
 package analysis
 
 import (
+	"fmt"
 	"testing"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/stretchr/testify/assert"
 	"go.lsp.dev/protocol"
 
+	"github.com/autokitteh/starlark-lsp/pkg/document"
 	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
@@ -335,4 +337,78 @@ s.i`, line: 1, char: 3, expected: []string{"items"}},
 			assertCompletionResult(t, tt.expected, result)
 		})
 	}
+}
+
+func TestFindObjectExpression(t *testing.T) {
+	f := newFixture(t)
+	tests := []struct {
+		doc                string
+		line, char         uint32
+		expectedNodeTypes  []string
+		expectedParentTree string
+	}{
+		{
+			doc: `foo.bar()`, char: 4, expectedNodeTypes: []string{"attribute"},
+			expectedParentTree: `
+attribute (N): foo.bar
+  identifier (N): foo
+  . (U): .
+  identifier (N): bar`,
+		},
+
+		{
+			doc: `foo.`, char: 4, expectedNodeTypes: []string{"identifier", "."},
+			expectedParentTree: `
+module (N): foo.
+  ERROR (N): foo.
+    identifier (N): foo
+    . (U): .`,
+		},
+
+		{
+			doc: `baz(foo.)`, char: 8, expectedNodeTypes: []string{"identifier", "."},
+			expectedParentTree: `
+argument_list (N): (foo.)
+  ( (U): (
+  identifier (N): foo
+  ERROR (N): .
+    . (U): .
+  ) (U): )`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			doc := f.MainDoc(tt.doc)
+			pos := protocol.Position{Line: tt.line, Character: tt.char}
+			pt := query.PositionToPoint(pos)
+
+			n, _ := query.NodeAtPosition(doc, pos)
+			assert.Equal(t, tt.expectedParentTree, printNodeTree(doc, n.Parent(), ""))
+			nodes, _ := f.a.nodesForCompletion(doc, n, pt) // simulate the flow
+			nodeTypes := []string{}
+			for _, n := range nodes {
+				nodeTypes = append(nodeTypes, n.Type())
+			}
+			assert.ElementsMatch(t, tt.expectedNodeTypes, nodeTypes)
+
+			objNode := f.a.findObjectExpression(nodes, pt)
+			assert.Equal(t, objNode.Type(), "identifier")
+			assert.Equal(t, doc.Content(objNode), "foo")
+		})
+	}
+}
+
+func printNodeTree(d document.Document, n *sitter.Node, indent string) string {
+	nodeType := "U"
+	if n.IsNamed() {
+		nodeType = "N"
+	}
+	result := fmt.Sprintf("\n%s%s (%s): %s", indent, n.Type(), nodeType, d.Content(n))
+	indent += "  "
+	for i := 0; i < int(n.ChildCount()); i++ {
+		child := n.Child(i)
+		result += printNodeTree(d, child, indent)
+	}
+	return result
 }

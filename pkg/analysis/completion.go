@@ -146,7 +146,7 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 
 	if len(symbols) == 0 {
 		lastId := identifiers[len(identifiers)-1]
-		expr := a.findAttrObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+		expr := a.findObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
 		if expr != nil {
 			symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
 		}
@@ -306,53 +306,69 @@ func (a *Analyzer) keywordArgSymbols(fn query.Signature, args callWithArguments)
 	return symbols
 }
 
-// Find the object part of an attribute expression that has a dot '.' immediately before the given point.
-func (a *Analyzer) findAttrObjectExpression(nodes []*sitter.Node, pt sitter.Point) *sitter.Node {
+// Find the object part of an expression that has a dot '.' immediately before the given point.
+func (a *Analyzer) findObjectExpression(nodes []*sitter.Node, pt sitter.Point) *sitter.Node {
+	// There could be multiple cases:
+	// 1. attribute node with 3 kids (identifier, dot, identifier), e.g. `bar.foo()` via hoover
+	// 2. two nodes (identifier, dot) w/o kids, with common parent, e.g. `bar.` via completion
+	// 3. two nodes (identifier, dot) w/o kids, with different parents, e.g. `baz(bar.)`` via completion
+
 	if pt.Column == 0 {
 		return nil
 	}
 
-	var dot *sitter.Node
+	var dot, expr, parentNode *sitter.Node
 	searchRange := sitter.Range{StartPoint: sitter.Point{Row: pt.Row, Column: pt.Column - 1}, EndPoint: pt}
-	var parentNode *sitter.Node
+	nodeComparisonFunc := func(n *sitter.Node) int {
+		if query.PointBeforeOrEqual(n.EndPoint(), searchRange.StartPoint) {
+			return -1
+		}
+		if n.StartPoint() == searchRange.StartPoint &&
+			n.EndPoint() == searchRange.EndPoint &&
+			n.Type() == "." {
+			return 0
+		}
+		if query.PointBeforeOrEqual(n.StartPoint(), searchRange.StartPoint) &&
+			query.PointAfterOrEqual(n.EndPoint(), searchRange.EndPoint) {
+			return 0
+		}
+		return 1
+	}
+
+	// first search in children. For example attribute node with 3 kids (identifier, dot, identifier)
 	for i := len(nodes) - 1; i >= 0; i-- {
 		parentNode = nodes[i]
-		dot = query.FindChildNode(parentNode, func(n *sitter.Node) int {
-			if query.PointBeforeOrEqual(n.EndPoint(), searchRange.StartPoint) {
-				return -1
-			}
-			if n.StartPoint() == searchRange.StartPoint &&
-				n.EndPoint() == searchRange.EndPoint &&
-				n.Type() == "." {
-				return 0
-			}
-			if query.PointBeforeOrEqual(n.StartPoint(), searchRange.StartPoint) &&
-				query.PointAfterOrEqual(n.EndPoint(), searchRange.EndPoint) {
-				return 0
-			}
-			return 1
-		})
-		if dot != nil {
+		if dot = query.FindChildNode(parentNode, nodeComparisonFunc); dot != nil {
 			break
 		}
 	}
+
 	if dot != nil {
-		expr := parentNode.PrevSibling()
+		expr = parentNode.PrevSibling()
 		for n := dot; n != parentNode; n = n.Parent() {
 			if n.PrevSibling() != nil {
 				expr = n.PrevSibling()
 				break
 			}
 		}
+	}
 
-		if expr != nil {
-			a.logger.Debug("dot completion",
-				zap.String("dot", dot.String()),
-				zap.String("expr", expr.String()))
-			return expr
+	// if not found, check nodes themselves
+	if dot == nil && expr == nil {
+		for i := len(nodes) - 1; i > 0; i-- {
+			if nodeComparisonFunc(nodes[i]) == 0 {
+				dot = nodes[i]
+				expr = nodes[i-1]
+			}
 		}
 	}
-	return nil
+
+	if expr != nil {
+		a.logger.Debug("dot completion",
+			zap.String("dot", dot.String()),
+			zap.String("expr", expr.String()))
+	}
+	return expr
 }
 
 // Perform some rudimentary type analysis to determine the Starlark type of the node
