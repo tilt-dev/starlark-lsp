@@ -36,6 +36,20 @@ func assertCompletionResult(t *testing.T, names []string, result *protocol.Compl
 	assert.ElementsMatch(t, names, labels)
 }
 
+func printNodeTree(d document.Document, n *sitter.Node, indent string) string {
+	nodeType := "U"
+	if n.IsNamed() {
+		nodeType = "N"
+	}
+	result := fmt.Sprintf("\n%s%s (%s): %s", indent, n.Type(), nodeType, d.Content(n))
+	indent += "  "
+	for i := 0; i < int(n.ChildCount()); i++ {
+		child := n.Child(i)
+		result += printNodeTree(d, child, indent)
+	}
+	return result
+}
+
 func TestSimpleCompletion(t *testing.T) {
 	f := newFixture(t)
 
@@ -78,6 +92,12 @@ f(
 def quux():
   pass
 `
+
+var (
+	allDictFuncs   = []string{"clear", "get", "items", "keys", "pop", "popitem", "setdefault", "update", "values"}
+	allListFuncs   = []string{"append", "clear", "extend", "index", "insert", "pop", "remove"}
+	allStringFuncs = []string{"elem_ords", "capitalize", "codepoint_ords", "count", "endswith", "find", "format", "index", "isalnum", "isalpha", "isdigit", "islower", "isspace", "istitle", "isupper", "join", "lower", "lstrip", "partition", "removeprefix", "removesuffix", "replace", "rfind", "rindex", "rpartition", "rsplit", "rstrip", "split", "elems", "codepoints", "splitlines", "startswith", "strip", "title", "upper"}
+)
 
 func TestCompletions(t *testing.T) {
 	tests := []struct {
@@ -288,8 +308,6 @@ func TestMemberCompletion(t *testing.T) {
 	}{
 		{doc: "pr", char: 2, expected: []string{"print"}},
 		{doc: "pr.end", char: 6, expected: []string{"endswith"}},
-		{doc: `"".isa`, char: 5, expected: []string{"isalnum", "isalpha"}},
-		{doc: `[].ex`, char: 5, expected: []string{"extend"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
@@ -312,6 +330,10 @@ func TestTypedMemberCompletion(t *testing.T) {
 		Name:       "bar",
 		ReturnType: "None",
 	}
+	f.builtins.Functions["baz"] = query.Signature{
+		Name:       "baz",
+		ReturnType: "dict",
+	}
 
 	tests := []struct {
 		doc        string
@@ -319,7 +341,9 @@ func TestTypedMemberCompletion(t *testing.T) {
 		expected   []string
 	}{
 		{doc: `"".c`, char: 4, expected: []string{"capitalize", "codepoint_ords", "count", "codepoints"}},
+		{doc: `"".isa`, char: 5, expected: []string{"isalnum", "isalpha"}},
 		{doc: `[].c`, char: 4, expected: []string{"clear"}},
+		{doc: `[].ex`, char: 5, expected: []string{"extend"}},
 		{doc: `{}.i`, char: 4, expected: []string{"items"}},
 		{doc: `s = ""
 s.c`, line: 1, char: 3, expected: []string{"capitalize", "codepoint_ords", "count", "codepoints"}},
@@ -329,7 +353,39 @@ s.c`, line: 1, char: 3, expected: []string{"clear"}},
 s.i`, line: 1, char: 3, expected: []string{"items"}},
 		{doc: `foo().c`, char: 7, expected: []string{"capitalize", "codepoint_ords", "count", "codepoints"}},
 		{doc: `bar().`, char: 6, expected: []string{}},
+
+		// zero char/only dot completion
+		{doc: `s = ""
+s.`, line: 1, char: 2, expected: allStringFuncs},
+		{doc: `l = []
+l.`, line: 1, char: 2, expected: allListFuncs},
+		{doc: `d = {}
+d.`, line: 1, char: 2, expected: allDictFuncs},
+
+		// type propagation
+		{doc: `s = ""
+ss = s
+s.`, line: 2, char: 2, expected: allStringFuncs},
+		{doc: `l = []
+ll = l
+l.`, line: 2, char: 2, expected: allListFuncs},
+		{doc: `d = {}
+dd = d
+d.`, line: 2, char: 2, expected: allDictFuncs},
+
+		// func1 -> type1, type1.func2 -> type2
+		{doc: `s = foo()
+s.`, line: 1, char: 2, expected: allStringFuncs},
+		{doc: `d = baz()
+d.`, line: 1, char: 2, expected: allDictFuncs},
+		{doc: `d = baz()
+l = d.keys()
+l.`, line: 2, char: 2, expected: allListFuncs},
+		{doc: `d = {}
+l = d.keys()
+l.`, line: 2, char: 2, expected: allListFuncs},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.doc, func(t *testing.T) {
 			doc := f.MainDoc(tt.doc)
@@ -399,16 +455,87 @@ argument_list (N): (foo.)
 	}
 }
 
-func printNodeTree(d document.Document, n *sitter.Node, indent string) string {
-	nodeType := "U"
-	if n.IsNamed() {
-		nodeType = "N"
+const funcsAndObjectsFixture = `
+class C1:
+    i1: int
+    def foo() -> list: 
+        "C1 FOO"
+        pass
+    
+class C2:
+    i2: int
+    def foo() -> dict:
+        "C2 FOO"
+        pass
+
+def get_c1(s: str) -> C1:
+    "GET C1"
+    return C1()
+
+def get_c2(s: str) -> C2:
+    "GET C2"
+    return C2()
+`
+
+func TestRemappedSymbolsCompletion(t *testing.T) {
+	f := newFixture(t)
+	_ = WithStarlarkBuiltins()(f.a)
+	f.ParseBuiltins(funcsAndObjectsFixture)
+
+	tests := []struct {
+		doc        string
+		line, char uint32
+		expected   []string
+	}{
+		{doc: `c = get_c1()
+c.`, line: 1, char: 2, expected: []string{"i1", "foo"}},
+		{doc: `c = get_c2()
+c.`, line: 1, char: 2, expected: []string{"i2", "foo"}},
+
+		// type propagation
+		{doc: `cc = get_c1()
+c = cc
+c.`, line: 2, char: 2, expected: []string{"i1", "foo"}},
+		{doc: `cc = get_c2()
+c = cc
+c.`, line: 2, char: 2, expected: []string{"i2", "foo"}},
+
+		// resolving func1() -> type1, type1.func2 -> type2,
+		{doc: `c = get_c1()
+r = c.foo()
+r.`, line: 2, char: 2, expected: allListFuncs},
+		{doc: `c = get_c2()
+r = c.foo()
+r.`, line: 2, char: 2, expected: allDictFuncs},
+
+		// handling argument lists
+		{doc: `c = get_c1("arg1")
+c.`, line: 1, char: 2, expected: []string{"i1", "foo"}},
+		{doc: `c = get_c1("args1", arg2)
+c.`, line: 1, char: 2, expected: []string{"i1", "foo"}},
+		{doc: `c = get_c1("args1", arg2, a3="arg3")
+c.`, line: 1, char: 2, expected: []string{"i1", "foo"}},
+		{doc: `c = get_c2(
+"arg1"
+)
+c.`, line: 3, char: 2, expected: []string{"i2", "foo"}},
+		{doc: `c = get_c2(
+    "args1", 
+	    arg2)
+c.`, line: 3, char: 2, expected: []string{"i2", "foo"}},
+		{doc: `c = get_c2(
+"args1", 
+arg2, 
+a3="arg3"
+)
+c.`, line: 5, char: 2, expected: []string{"i2", "foo"}},
 	}
-	result := fmt.Sprintf("\n%s%s (%s): %s", indent, n.Type(), nodeType, d.Content(n))
-	indent += "  "
-	for i := 0; i < int(n.ChildCount()); i++ {
-		child := n.Child(i)
-		result += printNodeTree(d, child, indent)
+
+	for _, tt := range tests {
+		t.Run(tt.doc, func(t *testing.T) {
+			doc := f.MainDoc(tt.doc)
+			result := f.a.Completion(doc, protocol.Position{Line: tt.line, Character: tt.char})
+			assertCompletionResult(t, tt.expected, result)
+		})
 	}
-	return result
 }

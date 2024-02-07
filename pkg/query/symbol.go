@@ -34,6 +34,11 @@ func SiblingSymbols(doc DocumentContent, node, before *sitter.Node) []Symbol {
 	return symbols
 }
 
+// assignment expression could appear in various forms
+// i: int  # varable definition (with or w/o hint/annotation)
+// i = 1  # direct assignment of well known kind, e.g. int
+// i = j  # from other var
+// i = foo()  # from function res
 func ExtractVariableAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 	if n.Type() != NodeTypeExpressionStatement {
 		panic(fmt.Errorf("invalid node type: %s", n.Type()))
@@ -46,17 +51,32 @@ func ExtractVariableAssignment(doc DocumentContent, n *sitter.Node) Symbol {
 	}
 	symbol.Name = doc.Content(assignment.ChildByFieldName("left"))
 	val := assignment.ChildByFieldName("right")
-	t := assignment.ChildByFieldName("type")
+	typeNode := assignment.ChildByFieldName("type")
+
 	var kind protocol.SymbolKind
-	if t != nil {
-		kind = pythonTypeToSymbolKind(doc, t)
+	var typeStr string
+
+	if typeNode != nil {
+		kind, typeStr = AnnotationNodeToSymbolKindAndType(doc, typeNode)
 	} else if val != nil {
-		kind = nodeTypeToSymbolKind(val)
+		// set exact kind and corresponding type for protocol-defined kinds, e.g. String, Array(list), Object(Dict), Number, Bool, etc..
+		// for others set their kind to Variable and type to Rval, i.e. `func()` or for assigned symbol name
+		kind = NodeToSymbolKind(val)
+
+		if kind == protocol.SymbolKindFunction || kind == 0 {
+			kind = protocol.SymbolKindVariable
+			typeStr = doc.Content(val)
+		} else {
+			typeStr = SymbolKindToBuiltinType(kind) // String, List, Dict, etc .. or ""
+		}
 	}
+
 	if kind == 0 {
 		kind = protocol.SymbolKindVariable
 	}
 	symbol.Kind = kind
+	symbol.Type = typeStr
+
 	symbol.Location = protocol.Location{
 		Range: NodeRange(n),
 		URI:   doc.URI(),
@@ -153,9 +173,17 @@ type Symbol struct {
 	Location       protocol.Location
 	SelectionRange protocol.Range
 	Children       []Symbol
+	Type           string
 }
 
-// builtins (e.g., `False`, `k8s_resource`) have no location
+// builtins (e.g., `False`) have no location
 func (s Symbol) HasLocation() bool {
 	return s.Location.URI != ""
+}
+
+func (s Symbol) GetType() string {
+	if t := SymbolKindToBuiltinType(s.Kind); t != "" {
+		return t
+	}
+	return s.Type
 }

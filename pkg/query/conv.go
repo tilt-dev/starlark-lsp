@@ -80,49 +80,84 @@ done:
 	return string(bytes)
 }
 
-func nodeTypeToSymbolKind(n *sitter.Node) protocol.SymbolKind {
-	switch n.Type() {
-	case "true":
-		return protocol.SymbolKindBoolean
-	case "false":
-		return protocol.SymbolKindBoolean
-	case "list":
-		return protocol.SymbolKindArray
-	case "dictionary":
-		return protocol.SymbolKindObject
-	case "integer":
-		return protocol.SymbolKindNumber
-	case "float":
-		return protocol.SymbolKindNumber
-	case "none":
-		return protocol.SymbolKindNull
-	case "string":
-		return protocol.SymbolKindString
-	case "function_definition":
-		return protocol.SymbolKindFunction
+var strToProtocolMap = map[string]protocol.SymbolKind{
+	"str":    protocol.SymbolKindString, // annotation
+	"string": protocol.SymbolKindString, // node.type, annotation
+
+	"bool":  protocol.SymbolKindBoolean, // annotation
+	"true":  protocol.SymbolKindBoolean, // node.type
+	"false": protocol.SymbolKindBoolean, // node.type
+
+	"list":  protocol.SymbolKindArray, // node.type, annotation
+	"tuple": protocol.SymbolKindArray, // annotation
+
+	"dict":       protocol.SymbolKindObject, // annotation
+	"dictionary": protocol.SymbolKindObject, // node.type
+	"any":        protocol.SymbolKindObject, // annotation
+
+	"int":     protocol.SymbolKindNumber, // annotation
+	"float":   protocol.SymbolKindNumber, // node.type, annotation
+	"integer": protocol.SymbolKindNumber, // node.type
+
+	"none": protocol.SymbolKindNull, // node.type
+
+	"callable":            protocol.SymbolKindFunction, // annotation
+	"function_definition": protocol.SymbolKindFunction, // node.type, func def
+	"call":                protocol.SymbolKindFunction, // node.type, assignment from func call
+}
+
+var KnownSymbolKinds map[protocol.SymbolKind]bool = map[protocol.SymbolKind]bool{
+	protocol.SymbolKindBoolean: true,
+	protocol.SymbolKindArray:   true, // list
+	protocol.SymbolKindObject:  true, // dict
+	protocol.SymbolKindNumber:  true, // float, int
+	protocol.SymbolKindNull:    true,
+	protocol.SymbolKindString:  true,
+}
+
+func StrToSymbolKind(s string) protocol.SymbolKind {
+	if kind, found := strToProtocolMap[s]; found {
+		return kind
 	}
 	return 0
 }
 
-func pythonTypeToSymbolKind(doc DocumentContent, n *sitter.Node) protocol.SymbolKind {
+func SymbolKindToBuiltinType(kind protocol.SymbolKind) string {
+	switch kind {
+	case protocol.SymbolKindString:
+		return "String"
+	case protocol.SymbolKindArray:
+		return "List"
+	case protocol.SymbolKindObject:
+		return "Dict"
+	}
+	return ""
+}
+
+func StrToSymbolKindAndType(s string) (protocol.SymbolKind, string) {
+	if s == "" {
+		return 0, s
+	}
+	sl := strings.ToLower(s)
+	kind := StrToSymbolKind(sl)
+	if kind != 0 {
+		if builtinType := SymbolKindToBuiltinType(kind); builtinType != "" {
+			return kind, builtinType
+		}
+		return kind, sl // known symbol kind, return lowcase
+	}
+	return kind, s // return the original type
+}
+
+func NodeToSymbolKind(n *sitter.Node) protocol.SymbolKind {
+	return StrToSymbolKind(n.Type())
+}
+
+// returns corresponding protocol.symbolKind and type parsed
+func AnnotationNodeToSymbolKindAndType(doc DocumentContent, n *sitter.Node) (protocol.SymbolKind, string) {
 	// if the type has a subscript like 'List[str]', use 'List' as the type
 	if n.ChildCount() > 0 && n.Child(0).Type() == "subscript" {
 		n = n.Child(0).ChildByFieldName("value")
 	}
-	t := strings.ToLower(doc.Content(n))
-	switch t {
-	case "str", "string", "bytes":
-		return protocol.SymbolKindString
-	case "list", "tuple":
-		return protocol.SymbolKindArray
-	case "callable":
-		return protocol.SymbolKindFunction
-	case "dict", "any":
-		return protocol.SymbolKindObject
-	case "int", "float":
-		return protocol.SymbolKindNumber
-	case "bool":
-		return protocol.SymbolKindBoolean
-	}
-	return 0
+	return StrToSymbolKindAndType(doc.Content(n))
 }

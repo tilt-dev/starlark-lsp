@@ -13,7 +13,12 @@ import (
 	"github.com/autokitteh/starlark-lsp/pkg/query"
 )
 
+var gAvailableSymbols []query.Symbol // cache computed available symbols
+
 func SymbolMatching(symbols []query.Symbol, name string) query.Symbol {
+	if name == "" {
+		return query.Symbol{}
+	}
 	for _, sym := range symbols {
 		if sym.Name == name {
 			return sym
@@ -36,6 +41,9 @@ func akIsBindedSymbol(sym query.Symbol) bool {
 
 // find and return either symbol or resolved binded symbol
 func akSymbolMatching(symbols []query.Symbol, name string) query.Symbol {
+	if name == "" {
+		return query.Symbol{}
+	}
 	sym := SymbolMatching(symbols, name)
 	if akIsBindedSymbol(sym) {
 		return SymbolMatching(symbols, sym.Detail)
@@ -112,6 +120,7 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 		nodeAtPoint = nodes[len(nodes)-1]
 	}
 	symbols := a.availableSymbols(doc, nodeAtPoint, pt)
+	gAvailableSymbols = symbols
 	identifiers := query.ExtractIdentifiers(doc, nodes, &pt)
 
 	a.logger.Debug("completion attempt",
@@ -144,12 +153,15 @@ func (a *Analyzer) completeExpression(doc document.Document, nodes []*sitter.Nod
 		}
 	}
 
-	if len(symbols) == 0 {
-		lastId := identifiers[len(identifiers)-1]
-		expr := a.findObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
-		if expr != nil {
-			symbols = append(symbols, SymbolsStartingWith(a.availableMembers(doc, expr), lastId)...)
-		}
+	if len(symbols) != 0 {
+		return symbols
+	}
+
+	lastId := identifiers[len(identifiers)-1]
+	expr := a.findObjectExpression(nodes, sitter.Point{Row: pt.Row, Column: pt.Column - uint32(len(lastId))})
+	if expr != nil {
+		a.logger.Debug("dot object completion", zap.Strings("objs", identifiers[:len(identifiers)-1]))
+		return SymbolsStartingWith(a.availableMembersForNode(doc, expr), lastId)
 	}
 
 	return symbols
@@ -376,47 +388,72 @@ func (a *Analyzer) analyzeType(doc document.Document, node *sitter.Node) string 
 	if node == nil {
 		return ""
 	}
-	switch node.Type() {
-	case query.NodeTypeString:
-		return "String"
-	case query.NodeTypeDictionary:
-		return "Dict"
-	case query.NodeTypeList:
-		return "List"
+	nodeT := node.Type()
+	switch nodeT {
+	case query.NodeTypeString, query.NodeTypeDictionary, query.NodeTypeList:
+		return query.SymbolKindToBuiltinType(query.StrToSymbolKind(nodeT))
+
 	case query.NodeTypeIdentifier:
-		sym, found := a.FindDefinition(doc, node, doc.Content(node))
-		if found {
-			switch sym.Kind {
-			case protocol.SymbolKindString:
-				return "String"
-			case protocol.SymbolKindObject:
-				return "Dict"
-			case protocol.SymbolKindArray:
-				return "List"
+		if sym, found := a.FindDefinition(doc, node, doc.Content(node)); found {
+			if sym.Kind == protocol.SymbolKindVariable {
+				sym = a.resolveSymbolTypeAndKind(doc, node, sym)
 			}
+			return sym.GetType()
 		}
+
 	case query.NodeTypeCall:
 		fnName := doc.Content(node.ChildByFieldName("function"))
 		args := node.ChildByFieldName("arguments")
-		sig, found := a.signatureInformation(doc, node, callWithArguments{fnName: fnName, argsNode: args})
-		if found && sig.ReturnType != "" {
-			switch strings.ToLower(sig.ReturnType) {
-			case "str", "string":
-				return "String"
-			case "list":
-				return "List"
-			case "dict":
-				return "Dict"
-			default:
-				return sig.ReturnType
-			}
-		}
+		sig, _ := a.signatureInformation(doc, node, callWithArguments{fnName: fnName, argsNode: args})
+		_, t := query.StrToSymbolKindAndType(sig.ReturnType)
+		return t
 	}
 	return ""
 }
 
-func (a *Analyzer) availableMembers(doc document.Document, node *sitter.Node) []query.Symbol {
-	if t := a.analyzeType(doc, node); t != "" {
+func (a *Analyzer) resolveSymbolTypeAndKind(doc document.Document, orginatingNode *sitter.Node, sym query.Symbol) query.Symbol {
+	if len(gAvailableSymbols) == 0 {
+		// TODO: there is a call for findDefinition. maybe we should cache local symbols?
+		// TODO: convert list to map
+		gAvailableSymbols = a.availableSymbols(doc, orginatingNode, orginatingNode.StartPoint())
+	}
+
+	maxResolveSteps := 5 // just to limit
+	for i := 0; i < maxResolveSteps; i++ {
+		// assignment from function or from known proto kinds (str/dict/list)
+		if _, knownKind := query.KnownSymbolKinds[sym.Kind]; knownKind || strings.HasSuffix(sym.Type, ")") {
+			break
+		}
+
+		for _, s := range gAvailableSymbols {
+			if s.Name == sym.Type {
+				sym = s
+				break
+			}
+		}
+	}
+
+	if idx := strings.Index(sym.Type, "("); idx > 0 && sym.Type[len(sym.Type)-1] == ')' { // assignment from function call (e.g. `foo = bar()`)
+		funcName := sym.Type[:idx] // remove everything till the arguments call
+
+		argsNode, _ := query.NodeAtPosition(doc, sym.Location.Range.End) // sym.Location.Range covers entire assignment
+
+		// signatureInformation is expecting to single node and preferrably `attribute` node with 3 kids,
+		// in order to pass it to findTypedMethodForNode. If args node is passed, findTypedMethodForNode will
+		// invoke findAttrObjectExpression on its parent (e.g. `call` node), thus object expression will be resolved correctly.
+		sig, found := a.signatureInformation(doc, argsNode, callWithArguments{fnName: funcName, argsNode: argsNode})
+
+		if found && sig.ReturnType != "" {
+			kind, t := query.StrToSymbolKindAndType(sig.ReturnType)
+			sym.Type = t
+			sym.Kind = kind
+		}
+	}
+	return sym
+}
+
+func (a *Analyzer) availableMembers(t string) []query.Symbol {
+	if t != "" {
 		if class, found := a.builtins.Types[t]; found {
 			return class.Members
 		}
@@ -426,6 +463,11 @@ func (a *Analyzer) availableMembers(doc document.Document, node *sitter.Node) []
 		}
 	}
 	return a.builtins.Members
+}
+
+func (a *Analyzer) availableMembersForNode(doc document.Document, node *sitter.Node) []query.Symbol {
+	t := a.analyzeType(doc, node)
+	return a.availableMembers(t)
 }
 
 func (a *Analyzer) FindDefinition(doc document.Document, node *sitter.Node, name string) (query.Symbol, bool) {

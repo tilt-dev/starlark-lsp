@@ -291,8 +291,11 @@ func (f *fixture) MainDoc(content string) document.Document {
 func (f *fixture) ParseBuiltins(content string) {
 	builtins, err := LoadBuiltinsFromSource(f.ctx, []byte(content), "__test__")
 	require.NoError(f.t, err)
-	f.a.builtins = builtins
-	f.builtins = builtins
+	f.a.builtins.Update(builtins)
+	f.builtins = f.a.builtins
+
+	// f.a.builtins = builtins
+	// f.builtins = builtins
 }
 
 func newFixture(t *testing.T) *fixture {
