@@ -3,7 +3,7 @@
 class SlackMessage:
     type: str
     subtype: str
-    hidden bool
+    hidden: bool
 
     text: str
     blocks: List[SlackBlock]
@@ -12,7 +12,7 @@ class SlackMessage:
     user: str
     app_id: str
     bot_id: str
-    bot_profile BotProfile|None
+    bot_profile: BotProfile|None
     parent_user_id: str
 
     team: str
