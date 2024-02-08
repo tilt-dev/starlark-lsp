@@ -617,7 +617,7 @@ def list_collaborators(owner: str, repo: str, affiliation: str|None, permission:
     """
     pass
 
-def list_commits(owner: str, repo: str, opts: str|None) -> List[GHRepositoryCommit]
+def list_commits(owner: str, repo: str, opts: str|None) -> List[GHRepositoryCommit]:
     """List commits
     API:
       see https://docs.github.com/en/rest/commits/commits#list-commits
@@ -643,7 +643,7 @@ def create_issue_comment(owner: str, repo: str, number: str, body: str) -> GHIss
 
 
 ## Issue labels
-def add_issue_labels(owner: str, repo: str, number: str, labels: str) -> List[GHLabel]
+def add_issue_labels(owner: str, repo: str, number: str, labels: str) -> List[GHLabel]:
     """Add labes to an issue
     API:
       see https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
@@ -688,7 +688,7 @@ def request_review(owner: str, repo: str, number: str, reviewers: str|None, team
     pass
 
 ## Pull-request comments.
-def list_review_comments(owner: str, repo: str, number: str) -> List[GHPullRequestComment]
+def list_review_comments(owner: str, repo: str, number: str) -> List[GHPullRequestComment]:
     """List review comments on a pull request
     API:
       see https://docs.github.com/en/rest/pulls/comments#list-review-comments-on-a-pull-request
