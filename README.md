@@ -61,3 +61,9 @@ The `Tiltfile` in this repository can be used while developing the language serv
 [ext]: https://marketplace.visualstudio.com/items?itemName=tilt-dev.tiltfile
 [CONTRIBUTING.md]: https://github.com/tilt-dev/vscode-tilt/blob/main/CONTRIBUTING.md#language-server
 [vscode-tilt]: https://github.com/tilt-dev/vscode-tilt/
+
+## License
+
+Copyright 2024 Docker, Inc.
+
+Licensed under [the Apache License, Version 2.0](LICENSE)
