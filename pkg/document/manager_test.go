@@ -41,6 +41,47 @@ func TestReadWithLoad(t *testing.T) {
 	}
 }
 
+func TestReadWithLoadPath(t *testing.T) {
+	f := newFixture(t)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll("stubs/acme", 0755))
+	require.NoError(t, os.WriteFile("doc1", []byte(`load("acme/api.star", "foo")`), 0644))
+	require.NoError(t, os.WriteFile("stubs/acme/api.star", []byte(`foo = True`), 0644))
+	WithLoadPaths([]string{"stubs"})(f.m)
+
+	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
+	require.NoError(t, err)
+	assert.Empty(t, doc.Diagnostics())
+	syms := doc.Symbols()
+	assert.Equal(t, 1, len(syms))
+	if len(syms) == 1 {
+		assert.Equal(t, "foo", syms[0].Name)
+		assert.Equal(t, uri.File(filepath.Join(cwd, "stubs/acme/api.star")), syms[0].Location.URI)
+	}
+}
+
+func TestReadWithLoadPathPrefersRelativeFile(t *testing.T) {
+	f := newFixture(t)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll("stubs/acme", 0755))
+	require.NoError(t, os.MkdirAll("acme", 0755))
+	require.NoError(t, os.WriteFile("doc1", []byte(`load("acme/api.star", "foo")`), 0644))
+	require.NoError(t, os.WriteFile("acme/api.star", []byte(`foo = "relative"`), 0644))
+	require.NoError(t, os.WriteFile("stubs/acme/api.star", []byte(`foo = "stub"`), 0644))
+	WithLoadPaths([]string{"stubs"})(f.m)
+
+	doc, err := f.m.Read(f.ctx, uri.File("doc1"))
+	require.NoError(t, err)
+	assert.Empty(t, doc.Diagnostics())
+	syms := doc.Symbols()
+	assert.Equal(t, 1, len(syms))
+	if len(syms) == 1 {
+		assert.Equal(t, uri.File(filepath.Join(cwd, "acme/api.star")), syms[0].Location.URI)
+	}
+}
+
 func TestReadWithUnsupportedURI(t *testing.T) {
 	f := newFixture(t)
 	require.NoError(t, os.WriteFile("doc", []byte(`load("ext://doc2", "foo")`), 0644))

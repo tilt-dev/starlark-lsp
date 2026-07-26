@@ -157,7 +157,7 @@ func (d *document) followLoads(ctx context.Context, m *Manager, parseState Docum
 		if load.File == "" {
 			continue
 		}
-		path, err := resolvePath(load.File, d.uri)
+		path, err := m.resolveLoadFunc(load.File, d.uri)
 		var dep Document
 		if err == nil {
 			dep, err = m.readAndParse(ctx, path, parseState)

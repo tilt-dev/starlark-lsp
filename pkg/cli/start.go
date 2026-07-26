@@ -23,7 +23,8 @@ import (
 
 type startCmd struct {
 	*cobra.Command
-	address string
+	address   string
+	loadPaths []string
 }
 
 var exampleTemplate = template.Must(template.New("example").Parse(`
@@ -32,6 +33,8 @@ var exampleTemplate = template.Must(template.New("example").Parse(`
 
 # Listen on all interfaces on port 8765
 {{.BaseCommandName}} start --address=":8765"
+
+{{.BaseCommandName}} start --load-paths "./starlark/api"
 {{if .HasBuiltinPathsParam}}
 # Provide type-stub style files to parse and treat as additional language
 # built-ins. If path is a directory, treat files and directories inside
@@ -100,6 +103,11 @@ For socket mode, pass the --address option.
 	cmd.Command.RunE = func(cc *cobra.Command, args []string) error {
 		ctx := cc.Context()
 
+		providedManagerOptions = append([]document.ManagerOpt{}, managerOpts...)
+		if len(cmd.loadPaths) > 0 {
+			providedManagerOptions = append(providedManagerOptions, document.WithLoadPaths(cmd.loadPaths))
+		}
+
 		analyzer, err := createAnalyzer(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create analyzer: %v", err)
@@ -117,6 +125,8 @@ For socket mode, pass the --address option.
 
 	cmd.Flags().StringVar(&cmd.address, "address", "",
 		"Address (hostname:port) to listen on")
+	cmd.Flags().StringArrayVar(&cmd.loadPaths, "load-paths", nil,
+		"Directories to search when resolving load statements")
 
 	return &cmd
 }

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"go.lsp.dev/protocol"
@@ -17,24 +18,27 @@ import (
 type ManagerOpt func(manager *Manager)
 type ReadDocumentFunc func(uri.URI) ([]byte, error)
 type ResolveURIFunc func(uri.URI) (string, error)
+type ResolveLoadFunc func(path string, relativeTo uri.URI) (uri.URI, error)
 type DocumentMap map[uri.URI]Document
 
 // Manager provides simplified file read/write operations for the LSP server.
 type Manager struct {
-	mu             sync.Mutex
-	root           uri.URI
-	docs           DocumentMap
-	newDocFunc     NewDocumentFunc
-	readDocFunc    ReadDocumentFunc
-	resolveUriFunc ResolveURIFunc
+	mu              sync.Mutex
+	root            uri.URI
+	docs            DocumentMap
+	newDocFunc      NewDocumentFunc
+	readDocFunc     ReadDocumentFunc
+	resolveUriFunc  ResolveURIFunc
+	resolveLoadFunc ResolveLoadFunc
 }
 
 func NewDocumentManager(opts ...ManagerOpt) *Manager {
 	m := Manager{
-		docs:           make(DocumentMap),
-		newDocFunc:     NewDocument,
-		readDocFunc:    ReadDocument,
-		resolveUriFunc: ResolveURI,
+		docs:            make(DocumentMap),
+		newDocFunc:      NewDocument,
+		readDocFunc:     ReadDocument,
+		resolveUriFunc:  ResolveURI,
+		resolveLoadFunc: ResolveLoad,
 	}
 
 	for _, opt := range opts {
@@ -62,6 +66,45 @@ func WithResolveURIFunc(fn ResolveURIFunc) ManagerOpt {
 	}
 }
 
+func WithResolveLoadFunc(fn ResolveLoadFunc) ManagerOpt {
+	return func(manager *Manager) {
+		manager.resolveLoadFunc = fn
+	}
+}
+
+func WithLoadPaths(paths []string) ManagerOpt {
+	return func(manager *Manager) {
+		var roots []string
+		for _, path := range paths {
+			if path == "" {
+				continue
+			}
+			if abs, err := filepath.Abs(path); err == nil {
+				path = abs
+			}
+			roots = append(roots, filepath.Clean(path))
+		}
+
+		previous := manager.resolveLoadFunc
+		manager.resolveLoadFunc = func(path string, relativeTo uri.URI) (uri.URI, error) {
+			resolved, err := previous(path, relativeTo)
+			if err != nil {
+				return "", err
+			}
+			if loadURIExists(resolved) || !loadPathSearchable(path) {
+				return resolved, nil
+			}
+			for _, root := range roots {
+				candidate := uri.File(filepath.Join(root, filepath.FromSlash(path)))
+				if loadURIExists(candidate) {
+					return candidate, nil
+				}
+			}
+			return resolved, nil
+		}
+	}
+}
+
 // Read the document from the given URI and return its contents. This default
 // implementation of a ReadDocumentFunc only handles file: URIs and returns an
 // error otherwise.
@@ -84,6 +127,26 @@ func ResolveURI(u uri.URI) (string, error) {
 		return "", fmt.Errorf("only file: URLs supported: %s", u)
 	}
 	return u.Filename(), nil
+}
+
+func ResolveLoad(path string, relativeTo uri.URI) (uri.URI, error) {
+	return resolvePath(path, relativeTo)
+}
+
+func loadPathSearchable(path string) bool {
+	return !filepath.IsAbs(path) && !strings.Contains(path, "://")
+}
+
+func loadURIExists(u uri.URI) bool {
+	fn, err := filename(u)
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(fn)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
 }
 
 func filename(u uri.URI) (fn string, err error) {

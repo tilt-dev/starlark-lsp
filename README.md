@@ -37,9 +37,12 @@ starlark-lsp start --address=":8765"
 # like python modules: subdir/__init__.py and subdir.py define a subdir module.
 starlark-lsp start --builtin-paths "foo.py" --builtin-paths "/tmp/modules"
 
+starlark-lsp start --load-paths "./starlark/api"
+
 Flags:
       --address string              Address (hostname:port) to listen on
       --builtin-paths stringArray   Paths to files and directories to parse and treat as additional language builtins
+      --load-paths stringArray      Directories to search when resolving load statements
   -h, --help                        help for start
 
 Global Flags:
